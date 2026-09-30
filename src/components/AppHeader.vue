@@ -48,7 +48,19 @@ const navigateTo = (path) => {
           class="font-medium !px-4"
           @click="navigateTo('/')"
         >
-          前台預約
+          場地預約
+        </v-btn>
+
+        <v-btn
+          v-if="!route.path.startsWith('/admin')"
+          :variant="route.path === '/my-bookings' ? 'flat' : 'text'"
+          :color="route.path === '/my-bookings' ? 'primary' : 'grey-darken-2'"
+          rounded="lg"
+          prepend-icon="mdi-bookmark-multiple-outline"
+          class="font-medium !px-4"
+          @click="navigateTo('/my-bookings')"
+        >
+          我的預約
         </v-btn>
 
         <v-btn
