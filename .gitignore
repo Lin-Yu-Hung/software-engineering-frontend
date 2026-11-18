@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Backend local configuration and temporary tooling
+/tmp/
+/backend/.env
+/backend/.env.*
+!/backend/.env.example
+.neon
+# Neon may pull to .env when that file exists. Keep every root credential file private.
+/.env
+/.env.*
+!/.env.example

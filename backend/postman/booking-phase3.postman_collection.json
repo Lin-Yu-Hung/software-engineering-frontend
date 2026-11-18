@@ -1,0 +1,1177 @@
+{
+  "info": {
+    "_postman_id": "053c3f86-4aab-4d1a-9e34-24d5834899a5",
+    "name": "Booking Backend - Phase 3",
+    "description": "Run all requests in order against local development. Temporarily updates weekly hours, a date exception and pricing, then restores original settings using version checks. Do not edit settings concurrently or interrupt restoration. Schedule preview only: no holds/orders yet.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{phase3Token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "phase3Token",
+      "value": ""
+    },
+    {
+      "key": "queryDate",
+      "value": ""
+    },
+    {
+      "key": "courtId",
+      "value": ""
+    },
+    {
+      "key": "exceptionId",
+      "value": ""
+    },
+    {
+      "key": "hoursVersion",
+      "value": ""
+    },
+    {
+      "key": "pricingVersion",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Database V5",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/health",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Migration V5 ready\", () => pm.expect(Number(pm.response.json().schemaVersion)).to.be.at.least(5));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "02 - Venue and Taipei dates",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/venue",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const venue = pm.response.json();",
+              "pm.collectionVariables.set(\"today\", venue.earliestDate);",
+              "pm.collectionVariables.set(\"lastDate\", venue.latestDate);",
+              "pm.test(\"Live calendar\", () => { pm.expect(venue.timezone).to.eql(\"Asia/Taipei\"); pm.expect(venue.slotMinutes).to.eql(60); pm.expect(venue.bookingEnabled).to.eql(true); });"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "03 - Admin login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@booking.local\",\n  \"password\": \"AdminDemo123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"phase3Token\", pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "04 - Save original weekly hours",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/operating-hours"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const hours = pm.response.json();",
+              "pm.collectionVariables.set(\"originalHours\", JSON.stringify({advanceBookingDays:hours.advanceBookingDays, days:hours.days}));",
+              "pm.collectionVariables.set(\"hoursVersion\", hours.version);",
+              "pm.collectionVariables.set(\"originalHoursVersion\", hours.version);",
+              "pm.test(\"Seven days\", () => pm.expect(hours.days).to.have.lengthOf(7));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "05 - Save original pricing",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/pricing-rules"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"originalRules\", JSON.stringify(pm.response.json().rules));",
+              "pm.collectionVariables.set(\"pricingVersion\", pm.response.json().version);",
+              "pm.collectionVariables.set(\"originalPricingVersion\", pm.response.json().version);",
+              "pm.test(\"TWD integer prices\", () => { pm.expect(pm.response.json().currency).to.eql(\"TWD\"); pm.response.json().rules.forEach(rule => pm.expect(Number.isInteger(rule.price)).to.eql(true)); });"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "06 - Choose future date without exception",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/calendar-exceptions?from={{today}}&to={{lastDate}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const used = new Set(pm.response.json().map(entry => entry.date));",
+              "const candidate = new Date(pm.collectionVariables.get(\"today\") + \"T00:00:00Z\");",
+              "const last = pm.collectionVariables.get(\"lastDate\"); let chosen = \"\";",
+              "for (let day = 0; day < 365; day++) { candidate.setUTCDate(candidate.getUTCDate() + 1); const date = candidate.toISOString().slice(0,10); if (date > last) break; if (!used.has(date)) { chosen = date; break; } }",
+              "pm.test(\"Unused future test date exists\", () => pm.expect(chosen).not.to.eql(\"\"));",
+              "if (!chosen) throw new Error(\"No unused future date; use a separate development database.\");",
+              "pm.collectionVariables.set(\"queryDate\", chosen);",
+              "const dayOfWeek = candidate.getUTCDay() || 7;",
+              "pm.collectionVariables.set(\"dayOfWeek\", dayOfWeek);",
+              "pm.collectionVariables.set(\"dayType\", dayOfWeek >= 6 ? \"WEEKEND\" : \"WEEKDAY\");"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "07 - Choose active court",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/courts",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Active court exists\", () => pm.expect(pm.response.json()).to.be.an(\"array\").and.not.empty);",
+              "pm.collectionVariables.set(\"courtId\", pm.response.json()[0].id);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "08 - Complete single-court grid",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/availability?date={{queryDate}}&courtId={{courtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"24 explicit slots\", () => { pm.expect(pm.response.json().slots).to.have.lengthOf(24); pm.expect(pm.response.json().inventoryMode).to.eql(\"LIVE\"); });"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "09 - Create holiday opening override",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/calendar-exceptions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"date\": \"{{queryDate}}\",\n  \"label\": \"Postman 測試特殊營業日\",\n  \"dayType\": \"HOLIDAY\",\n  \"periods\": [\n    {\n      \"startHour\": 10,\n      \"endHour\": 12\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"exceptionId\", pm.response.json().id);",
+              "pm.collectionVariables.set(\"hoursVersion\", Number(pm.collectionVariables.get(\"hoursVersion\")) + 1);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "10 - Holiday override applies",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/availability?date={{queryDate}}&courtId={{courtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Holiday has two open slots\", () => { const grid = pm.response.json(); pm.expect(grid.dayType).to.eql(\"HOLIDAY\"); pm.expect(grid.scheduleSource).to.eql(\"EXCEPTION\"); pm.expect(grid.slots.filter(slot => slot.status === \"AVAILABLE\")).to.have.lengthOf(2); pm.expect(grid.slots[10].price).to.be.above(0); pm.expect(grid.slots[12].status).to.eql(\"CLOSED\"); });"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "11 - Duplicate date rejected",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/calendar-exceptions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"date\": \"{{queryDate}}\",\n  \"label\": \"Postman 測試特殊營業日\",\n  \"dayType\": \"HOLIDAY\",\n  \"periods\": [\n    {\n      \"startHour\": 10,\n      \"endHour\": 12\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Error RESOURCE_CONFLICT\", () => pm.expect(pm.response.json().code).to.eql(\"RESOURCE_CONFLICT\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "12 - Close the special day",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/calendar-exceptions/{{exceptionId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"expectedVersion\": 0,\n  \"date\": \"{{queryDate}}\",\n  \"label\": \"Postman 休館測試\",\n  \"dayType\": \"HOLIDAY\",\n  \"periods\": []\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"hoursVersion\", Number(pm.collectionVariables.get(\"hoursVersion\")) + 1);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "13 - Closure produces explicit CLOSED slots",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/availability?date={{queryDate}}&courtId={{courtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"All 24 slots closed\", () => pm.response.json().slots.forEach(slot => { pm.expect(slot.status).to.eql(\"CLOSED\"); pm.expect(slot.price).to.eql(null); }));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "14 - Stale deletion rejected",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/calendar-exceptions/{{exceptionId}}?expectedVersion=0"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Error STALE_VERSION\", () => pm.expect(pm.response.json().code).to.eql(\"STALE_VERSION\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "15 - Remove test exception",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/calendar-exceptions/{{exceptionId}}?expectedVersion=1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));",
+              "pm.collectionVariables.set(\"hoursVersion\", Number(pm.collectionVariables.get(\"hoursVersion\")) + 1);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "16 - Extend selected weekday until midnight",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/operating-hours",
+        "body": {
+          "mode": "raw",
+          "raw": "{{hoursUpdateBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = JSON.parse(pm.collectionVariables.get(\"originalHours\"));",
+              "body.expectedVersion = Number(pm.collectionVariables.get(\"hoursVersion\"));",
+              "body.days.find(day => day.dayOfWeek === Number(pm.collectionVariables.get(\"dayOfWeek\"))).periods = [{startHour:8,endHour:24}];",
+              "pm.collectionVariables.set(\"hoursUpdateBody\", JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"hoursVersion\", pm.response.json().version);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "17 - Updated weekly schedule and midnight",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/availability?date={{queryDate}}&courtId={{courtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"16 open hours including 23 to 24\", () => { const grid = pm.response.json(); pm.expect(grid.scheduleSource).to.eql(\"WEEKLY\"); pm.expect(grid.slots.filter(slot => slot.status === \"AVAILABLE\")).to.have.lengthOf(16); pm.expect(grid.slots[23].endAt).to.include(\"T00:00\"); });"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "18 - Stale weekly update rejected",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/operating-hours",
+        "body": {
+          "mode": "raw",
+          "raw": "{{hoursUpdateBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Error STALE_VERSION\", () => pm.expect(pm.response.json().code).to.eql(\"STALE_VERSION\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "19 - Publish temporary court price 371 TWD",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/pricing-rules",
+        "body": {
+          "mode": "raw",
+          "raw": "{{pricingUpdateBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const rules = [\"WEEKDAY\",\"WEEKEND\",\"HOLIDAY\"].map(dayType => ({courtId:null,dayType,startHour:0,endHour:24,price:350,priceType:\"SPECIAL\",priority:0}));",
+              "rules.push({courtId:pm.collectionVariables.get(\"courtId\"),dayType:pm.collectionVariables.get(\"dayType\"),startHour:0,endHour:24,price:371,priceType:\"SPECIAL\",priority:0});",
+              "pm.collectionVariables.set(\"pricingUpdateBody\", JSON.stringify({expectedVersion:Number(pm.collectionVariables.get(\"pricingVersion\")),rules}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"pricingVersion\", pm.response.json().version);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "20 - Quotes use published pricing version",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/availability?date={{queryDate}}&courtId={{courtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Published quote is exact\", () => { const grid = pm.response.json(); pm.expect(grid.pricingVersion).to.eql(Number(pm.collectionVariables.get(\"pricingVersion\"))); grid.slots.filter(slot => slot.status === \"AVAILABLE\").forEach(slot => pm.expect(slot.price).to.eql(371)); });"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "21 - Negative price rejected",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/pricing-rules",
+        "body": {
+          "mode": "raw",
+          "raw": "{{invalidPricingBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = JSON.parse(pm.collectionVariables.get(\"pricingUpdateBody\")); body.expectedVersion = Number(pm.collectionVariables.get(\"pricingVersion\")); body.rules[0].price = -1; pm.collectionVariables.set(\"invalidPricingBody\", JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "22 - Missing fallback rejected",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/pricing-rules",
+        "body": {
+          "mode": "raw",
+          "raw": "{{invalidPricingBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = JSON.parse(pm.collectionVariables.get(\"pricingUpdateBody\")); body.expectedVersion = Number(pm.collectionVariables.get(\"pricingVersion\")); body.rules = body.rules.filter(rule => rule.courtId !== null); pm.collectionVariables.set(\"invalidPricingBody\", JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error INCOMPLETE_PRICING\", () => pm.expect(pm.response.json().code).to.eql(\"INCOMPLETE_PRICING\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "23 - Stale pricing update rejected",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/pricing-rules",
+        "body": {
+          "mode": "raw",
+          "raw": "{{pricingUpdateBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Error STALE_VERSION\", () => pm.expect(pm.response.json().code).to.eql(\"STALE_VERSION\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "24 - Restore original pricing",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/pricing-rules",
+        "body": {
+          "mode": "raw",
+          "raw": "{{restorePricingBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"restorePricingBody\", JSON.stringify({expectedVersion:Number(pm.collectionVariables.get(\"pricingVersion\")),rules:JSON.parse(pm.collectionVariables.get(\"originalRules\"))}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"pricingVersion\", pm.response.json().version);",
+              "pm.test(\"Original rule count restored\", () => pm.expect(pm.response.json().rules.length).to.eql(JSON.parse(pm.collectionVariables.get(\"originalRules\")).length));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "25 - Restore original weekly hours",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/operating-hours",
+        "body": {
+          "mode": "raw",
+          "raw": "{{restoreHoursBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = JSON.parse(pm.collectionVariables.get(\"originalHours\")); body.expectedVersion = Number(pm.collectionVariables.get(\"hoursVersion\")); pm.collectionVariables.set(\"restoreHoursBody\", JSON.stringify(body));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"hoursVersion\", pm.response.json().version);",
+              "pm.test(\"Original hours restored\", () => pm.expect(pm.response.json().days).to.eql(JSON.parse(pm.collectionVariables.get(\"originalHours\")).days));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "26 - Invalid date rejected",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/availability?date=not-a-date",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error INVALID_PARAMETER\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_PARAMETER\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "27 - Admin logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Requested-With",
+            "value": "BookingClient"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "28 - Front desk login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"frontdesk@booking.local\",\n  \"password\": \"StaffDemo123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"phase3Token\", pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "29 - Front desk cannot edit hours",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/operating-hours",
+        "body": {
+          "mode": "raw",
+          "raw": "{{restoreHoursBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "pm.test(\"Error FORBIDDEN\", () => pm.expect(pm.response.json().code).to.eql(\"FORBIDDEN\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "30 - Front desk cannot edit pricing",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/pricing-rules",
+        "body": {
+          "mode": "raw",
+          "raw": "{{restorePricingBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "pm.test(\"Error FORBIDDEN\", () => pm.expect(pm.response.json().code).to.eql(\"FORBIDDEN\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "31 - Front desk logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Requested-With",
+            "value": "BookingClient"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    }
+  ]
+}

@@ -1,0 +1,1085 @@
+{
+  "info": {
+    "name": "羽球場館預約系統｜純 API 與 Body 範例",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "每個 HTTP 方法與路徑僅列一次，沒有自動測試或資料產生腳本。需要 JSON body 的請求已填入範例；GET、DELETE 及以 cookie 操作的續期／登出不送 body。預設 baseUrl=http://localhost:8080。可手動改為 Azure origin。請先設定 collection Variables；ID、未來日期、最新版本及 accessToken 必須由你手動從查詢／建立回應複製。按 Send 的新增／修改／刪除請求會實際變更所連資料庫。Azure 固定示範帳號與模擬付款停用。"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "memberEmail",
+      "value": "postman-member@example.test",
+      "type": "string"
+    },
+    {
+      "key": "memberPassword",
+      "value": "MemberDemo123!",
+      "type": "string"
+    },
+    {
+      "key": "courtId",
+      "value": "00000000-0000-0000-0000-000000000001",
+      "type": "string"
+    },
+    {
+      "key": "queryDate",
+      "value": "2026-10-23",
+      "type": "string"
+    },
+    {
+      "key": "slotStartAt",
+      "value": "2026-10-23T10:00:00+08:00",
+      "type": "string"
+    },
+    {
+      "key": "holdId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "exceptionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "blockId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01｜公開查詢",
+      "description": "不需登入。先查看場館日期與可用時段，再手動設定預約變數。",
+      "item": [
+        {
+          "name": "檢查系統與資料庫",
+          "request": {
+            "method": "GET",
+            "description": "查詢資料庫連線與 Flyway 版本，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/health",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查詢開放場地清單",
+          "request": {
+            "method": "GET",
+            "description": "取得啟用中的場地；將回應的 id 複製至 collection 的 courtId 變數。不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/courts",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查詢單一場地",
+          "request": {
+            "method": "GET",
+            "description": "以 courtId 查詢啟用中的場地，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/courts/{{courtId}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查詢場館資訊",
+          "request": {
+            "method": "GET",
+            "description": "取得場館目前時間與預約範圍；請以此決定 queryDate。不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/venue",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查詢可預約時段",
+          "request": {
+            "method": "GET",
+            "description": "請先填 queryDate（YYYY-MM-DD）；將 AVAILABLE 時段的 startAt 複製到 slotStartAt。只查詢，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/availability?date={{queryDate}}&courtId={{courtId}}",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02｜註冊與登入",
+      "description": "手動送出。登入成功後，將回應 accessToken 複製至 collection 的 accessToken 變數。",
+      "item": [
+        {
+          "name": "註冊會員",
+          "request": {
+            "method": "POST",
+            "description": "建立 MEMBER 帳號。email 不得重複；密碼 8–72 字元（UTF-8 不超過 72 bytes）；姓名必填、最多 100 字元；電話 6–20 字元，允許數字、加號、括號、空白與連字號。重複操作請先換 memberEmail。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/register",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"{{memberPassword}}\",\n  \"name\": \"王小明\",\n  \"phone\": \"0912345678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "帳號登入",
+          "request": {
+            "method": "POST",
+            "description": "會員、櫃台及管理員共用此 API；請以具備所需角色的帳密登入，並手動複製回應 accessToken 至同名變數。Postman 會儲存 refresh cookie。Azure 不提供固定示範管理員帳號。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"{{memberPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "更新登入權杖",
+          "request": {
+            "method": "POST",
+            "description": "先登入取得 refresh cookie；保留 Cookie Jar。無 body，需 X-Requested-With 標頭。成功後手動更新 accessToken 變數。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Requested-With",
+                "value": "BookingClient",
+                "description": "使用 refresh cookie 時必填；cookie 由 Postman Cookie Jar 自動攜帶。"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "登出目前工作階段",
+          "request": {
+            "method": "POST",
+            "description": "以目前 refresh cookie 登出並撤銷工作階段；無 body，需 X-Requested-With 標頭。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Requested-With",
+                "value": "BookingClient",
+                "description": "使用 refresh cookie 時必填；cookie 由 Postman Cookie Jar 自動攜帶。"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/logout",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03｜會員資料",
+      "description": "需登入。此資料夾繼承整個 collection 的授權設定，使用 accessToken 變數。",
+      "item": [
+        {
+          "name": "取得我的會員資料",
+          "request": {
+            "method": "GET",
+            "description": "取得目前登入者資料及角色，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/me"
+          },
+          "response": []
+        },
+        {
+          "name": "修改我的會員資料",
+          "request": {
+            "method": "PATCH",
+            "description": "可修改姓名與電話；不會修改角色或密碼。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"王小明\",\n  \"phone\": \"0912345678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04｜會員預約與訂單",
+      "description": "需 MEMBER 身分。依查空場 → 保留 → 建立訂單順序手動操作；各 ID 都需自行由前一步回應複製。",
+      "item": [
+        {
+          "name": "保留場地時段",
+          "request": {
+            "method": "POST",
+            "description": "先設定 courtId、slotStartAt。每次可選 1–12 個未來整點時段，保留約十分鐘。同時段被占用會回 409。回應 id 請填入 holdId。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "每次送出自動產生新的識別碼；測試重送時請改填相同固定值。"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/holds",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"courtId\": \"{{courtId}}\",\n      \"startAt\": \"{{slotStartAt}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查詢我的保留",
+          "request": {
+            "method": "GET",
+            "description": "先填入自己建立的 holdId，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/holds/{{holdId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "釋放我的保留",
+          "request": {
+            "method": "DELETE",
+            "description": "只釋放指定且屬於自己的保留；無 body。釋放後不能再用此保留建立訂單。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/holds/{{holdId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "由保留建立待付款訂單",
+          "request": {
+            "method": "POST",
+            "description": "先設定有效 holdId；會員付款方式使用 CREDIT_CARD。金額由後端計算。本請求只建立待付款訂單，不會實際刷卡。回應 id 請填入 orderId。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "每次送出自動產生新的識別碼；測試重送時請改填相同固定值。"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"holdId\": \"{{holdId}}\",\n  \"customer\": {\n    \"name\": \"王小明\",\n    \"phone\": \"0912345678\"\n  },\n  \"paymentMethod\": \"CREDIT_CARD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查詢我的訂單清單",
+          "request": {
+            "method": "GET",
+            "description": "scope 可用 all、upcoming、past；page 從 0 開始，size 為 1–100。只查詢，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders?scope=all&page=0&size=20"
+          },
+          "response": []
+        },
+        {
+          "name": "查詢我的訂單明細",
+          "request": {
+            "method": "GET",
+            "description": "只能查詢自己的 orderId；無 body。回應 version 可供後台操作使用。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "取消我的訂單",
+          "request": {
+            "method": "POST",
+            "description": "請填入自己的 orderId 與取消原因；成功後釋放時段。已付款訂單的退款仍需金流流程處理。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/orders/{{orderId}}/cancellations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"顧客行程變更，取消預約\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05｜管理員場地設定",
+      "description": "需 ADMIN 身分；請先以管理員登入並更新 accessToken。",
+      "item": [
+        {
+          "name": "查詢後台所有場地",
+          "request": {
+            "method": "GET",
+            "description": "包含停用場地，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/courts"
+          },
+          "response": []
+        },
+        {
+          "name": "查詢後台場地明細",
+          "request": {
+            "method": "GET",
+            "description": "取得目前場地與 version；無 body。修改前先查詢最新版本。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/courts/{{courtId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "新增場地",
+          "request": {
+            "method": "POST",
+            "description": "場地名稱不可與啟用中的場地重複。新增成功後可將 id 填入 courtId。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/courts",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman 示範場地\",\n  \"type\": \"標準 PU\",\n  \"status\": \"ACTIVE\",\n  \"displayOrder\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改場地",
+          "request": {
+            "method": "PATCH",
+            "description": "範例 expectedVersion=0，請改為此場地最新 version；版本不同會回 409。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/courts/{{courtId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman 示範場地（更新）\",\n  \"type\": \"標準 PU\",\n  \"status\": \"ACTIVE\",\n  \"displayOrder\": 11,\n  \"expectedVersion\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "停用並退役場地",
+          "request": {
+            "method": "DELETE",
+            "description": "請把 query 的 expectedVersion=0 改為場地最新 version；歷史紀錄保留，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/courts/{{courtId}}?expectedVersion=0"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06｜管理員營業日程",
+      "description": "需 ADMIN 身分。PUT 會完整取代設定，請先 GET 目前設定與版本。",
+      "item": [
+        {
+          "name": "查詢每週營業時間",
+          "request": {
+            "method": "GET",
+            "description": "取得 version 與目前營業時段，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/operating-hours"
+          },
+          "response": []
+        },
+        {
+          "name": "完整更新每週營業時間",
+          "request": {
+            "method": "PUT",
+            "description": "請先查詢目前設定並填入最新 expectedVersion；days 必須包含週一至週日，dayOfWeek=1–7。範例每天 08:00–22:00，整份送出會覆蓋原設定。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/operating-hours",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedVersion\": 0,\n  \"advanceBookingDays\": 30,\n  \"days\": [\n    {\n      \"dayOfWeek\": 1,\n      \"periods\": [\n        {\n          \"startHour\": 8,\n          \"endHour\": 22\n        }\n      ]\n    },\n    {\n      \"dayOfWeek\": 2,\n      \"periods\": [\n        {\n          \"startHour\": 8,\n          \"endHour\": 22\n        }\n      ]\n    },\n    {\n      \"dayOfWeek\": 3,\n      \"periods\": [\n        {\n          \"startHour\": 8,\n          \"endHour\": 22\n        }\n      ]\n    },\n    {\n      \"dayOfWeek\": 4,\n      \"periods\": [\n        {\n          \"startHour\": 8,\n          \"endHour\": 22\n        }\n      ]\n    },\n    {\n      \"dayOfWeek\": 5,\n      \"periods\": [\n        {\n          \"startHour\": 8,\n          \"endHour\": 22\n        }\n      ]\n    },\n    {\n      \"dayOfWeek\": 6,\n      \"periods\": [\n        {\n          \"startHour\": 8,\n          \"endHour\": 22\n        }\n      ]\n    },\n    {\n      \"dayOfWeek\": 7,\n      \"periods\": [\n        {\n          \"startHour\": 8,\n          \"endHour\": 22\n        }\n      ]\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查詢特殊營業日",
+          "request": {
+            "method": "GET",
+            "description": "依 from、to 的 YYYY-MM-DD 日期範圍查詢，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/calendar-exceptions?from={{queryDate}}&to={{queryDate}}"
+          },
+          "response": []
+        },
+        {
+          "name": "新增特殊營業日",
+          "request": {
+            "method": "POST",
+            "description": "同日期只能有一筆例外；dayType 可用 WEEKDAY、WEEKEND、HOLIDAY。periods=[] 代表當日不營業。回應 id 請填入 exceptionId。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/calendar-exceptions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"{{queryDate}}\",\n  \"label\": \"特別營業日\",\n  \"dayType\": \"HOLIDAY\",\n  \"periods\": [\n    {\n      \"startHour\": 9,\n      \"endHour\": 18\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改特殊營業日",
+          "request": {
+            "method": "PATCH",
+            "description": "請填入 exceptionId 及目前 version；以完整日定義替換此筆例外。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/calendar-exceptions/{{exceptionId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedVersion\": 0,\n  \"date\": \"{{queryDate}}\",\n  \"label\": \"調整後的特別營業日\",\n  \"dayType\": \"HOLIDAY\",\n  \"periods\": [\n    {\n      \"startHour\": 9,\n      \"endHour\": 18\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "刪除特殊營業日",
+          "request": {
+            "method": "DELETE",
+            "description": "把 expectedVersion 改為此筆最新版本；刪除後依每週營業時間處理，無 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/calendar-exceptions/{{exceptionId}}?expectedVersion=0"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07｜管理員費率",
+      "description": "需 ADMIN 身分。更新會取代目前規則，先查詢最新版本及原規則。",
+      "item": [
+        {
+          "name": "查詢目前費率規則",
+          "request": {
+            "method": "GET",
+            "description": "取得 version、幣別與費率列表，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/pricing-rules"
+          },
+          "response": []
+        },
+        {
+          "name": "完整更新費率規則",
+          "request": {
+            "method": "PUT",
+            "description": "範例包含三種日別的全天基本費率，courtId=null 代表所有場地。請先填入最新 expectedVersion。送出會取代整份費率規則；price 是每小時新臺幣整數。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/pricing-rules",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedVersion\": 0,\n  \"rules\": [\n    {\n      \"courtId\": null,\n      \"dayType\": \"WEEKDAY\",\n      \"startHour\": 0,\n      \"endHour\": 24,\n      \"price\": 300,\n      \"priceType\": \"OFF_PEAK\",\n      \"priority\": 0\n    },\n    {\n      \"courtId\": null,\n      \"dayType\": \"WEEKEND\",\n      \"startHour\": 0,\n      \"endHour\": 24,\n      \"price\": 300,\n      \"priceType\": \"OFF_PEAK\",\n      \"priority\": 0\n    },\n    {\n      \"courtId\": null,\n      \"dayType\": \"HOLIDAY\",\n      \"startHour\": 0,\n      \"endHour\": 24,\n      \"price\": 300,\n      \"priceType\": \"OFF_PEAK\",\n      \"priority\": 0\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "08｜櫃台訂單與報到",
+      "description": "需 FRONT_DESK 或 ADMIN。請登入具備權限的帳號後更新 accessToken。",
+      "item": [
+        {
+          "name": "查詢每日排程棋盤",
+          "request": {
+            "method": "GET",
+            "description": "以日期查詢排程、訂單及封場，無 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/timetable?date={{queryDate}}"
+          },
+          "response": []
+        },
+        {
+          "name": "查詢後台訂單清單",
+          "request": {
+            "method": "GET",
+            "description": "可依日期分頁查詢；無 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/orders?date={{queryDate}}&page=0&size=20"
+          },
+          "response": []
+        },
+        {
+          "name": "建立電話或現場代訂",
+          "request": {
+            "method": "POST",
+            "description": "source 限 PHONE 或 WALK_IN；paymentMethod 限 CASH 或 ONSITE_CARD。先選可用時段，再設定 courtId、slotStartAt。回應 id 請填入 orderId。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "每次送出自動產生新的識別碼；測試重送時請改填相同固定值。"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/orders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source\": \"PHONE\",\n  \"paymentMethod\": \"CASH\",\n  \"customer\": {\n    \"name\": \"王小明\",\n    \"phone\": \"0912345678\"\n  },\n  \"notes\": \"電話預約，現場收費\",\n  \"items\": [\n    {\n      \"courtId\": \"{{courtId}}\",\n      \"startAt\": \"{{slotStartAt}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查詢後台訂單明細",
+          "request": {
+            "method": "GET",
+            "description": "查詢指定 orderId 的最新狀態與 version，無 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/orders/{{orderId}}"
+          },
+          "response": []
+        },
+        {
+          "name": "修改訂單聯絡資料",
+          "request": {
+            "method": "PATCH",
+            "description": "將 expectedVersion 改為訂單最新 version；可更新顧客聯絡資料與備註。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/orders/{{orderId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedVersion\": 0,\n  \"customer\": {\n    \"name\": \"王小明\",\n    \"phone\": \"0912345678\"\n  },\n  \"notes\": \"顧客已確認聯絡電話\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "由後台取消訂單",
+          "request": {
+            "method": "POST",
+            "description": "提供取消原因並取消訂單；會依目前訂單狀態檢查是否可取消。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/orders/{{orderId}}/cancellations",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"顧客行程變更，取消預約\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "辦理顧客報到",
+          "request": {
+            "method": "POST",
+            "description": "訂單必須符合報到條件；expectedVersion 請使用訂單最新版本。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/orders/{{orderId}}/check-in",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedVersion\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "撤銷顧客報到",
+          "request": {
+            "method": "POST",
+            "description": "更正已報到的訂單；expectedVersion 請使用報到後最新版本。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/orders/{{orderId}}/check-in-reversals",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expectedVersion\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "09｜管理員維修封場",
+      "description": "需 ADMIN 身分；封場與一般預約共用時段防撞規則。",
+      "item": [
+        {
+          "name": "建立維修封場",
+          "request": {
+            "method": "POST",
+            "description": "先設定 courtId、slotStartAt；回應 id 請填入 blockId。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "每次送出自動產生新的識別碼；測試重送時請改填相同固定值。"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/blocks",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"燈具維修\",\n  \"items\": [\n    {\n      \"courtId\": \"{{courtId}}\",\n      \"startAt\": \"{{slotStartAt}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查詢指定日期封場",
+          "request": {
+            "method": "GET",
+            "description": "依日期查看封場清單，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/blocks?date={{queryDate}}"
+          },
+          "response": []
+        },
+        {
+          "name": "解除維修封場",
+          "request": {
+            "method": "DELETE",
+            "description": "解除指定封場並釋放時段，不需要 body。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/blocks/{{blockId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "10｜本機示範付款",
+      "description": "需 ADMIN 且 DEMO_PAYMENTS_ENABLED=true；Azure 目前停用此功能。",
+      "item": [
+        {
+          "name": "模擬付款成功",
+          "request": {
+            "method": "POST",
+            "description": "只供本機展示，不會實際扣款。範例 amount=300，必須改成指定訂單 totalAmount 的精確整數金額。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/demo/orders/{{orderId}}/confirm-payment",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 300\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

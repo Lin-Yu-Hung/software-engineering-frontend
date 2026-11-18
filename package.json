@@ -6,10 +6,19 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "backend:neon": "node scripts/start-neon.mjs",
+    "backend:neon:stop": "node scripts/start-neon.mjs --stop",
+    "check:neon": "node scripts/check-neon.mjs",
+    "azure:plan": "node scripts/azure-backend.mjs",
+    "azure:deploy": "node scripts/azure-backend.mjs --deploy",
+    "check:azure": "node scripts/check-azure.mjs",
+    "demo:seed": "node scripts/seed-local-demo.mjs"
   },
   "dependencies": {
     "@mdi/font": "^7.4.47",
+    "@neon/config": "^1.9.3",
+    "@neon/env": "^1.6.4",
     "@tailwindcss/vite": "^4.3.3",
     "tailwindcss": "^4.3.3",
     "vite-plugin-vuetify": "^2.1.3",

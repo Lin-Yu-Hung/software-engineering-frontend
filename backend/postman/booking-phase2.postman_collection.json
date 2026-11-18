@@ -1,0 +1,1085 @@
+{
+  "info": {
+    "_postman_id": "342d1165-2b57-40d7-9bd0-35fd1e2d0478",
+    "name": "Booking Backend - Phase 2",
+    "description": "Run the full collection in order with Booking Local selected. Uses automatic cookie jar and stores JWT in collection variables. Creates a unique demo member and a demo court; the court is retired at the end. Expected 400/401/403/409 responses are tests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "memberEmail",
+      "value": ""
+    },
+    {
+      "key": "memberPassword",
+      "value": "MemberDemo123!"
+    },
+    {
+      "key": "managedCourtId",
+      "value": ""
+    },
+    {
+      "key": "courtVersion",
+      "value": "0"
+    },
+    {
+      "key": "managedCourtName",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Database migration V4",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/health",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Schema ready\", () => pm.expect(Number(pm.response.json().schemaVersion)).to.be.at.least(4));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "02 - Register unique member",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"{{memberPassword}}\",\n  \"name\": \"Postman 測試會員\",\n  \"phone\": \"0912345678\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set(\"memberEmail\", \"postman-\" + Date.now() + \"-\" + Math.floor(Math.random()*100000) + \"@example.test\");",
+              "pm.collectionVariables.set(\"managedCourtName\", \"Postman 測試場 \" + Date.now());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.test(\"Member role only\", () => pm.expect(pm.response.json().roles).to.eql([\"MEMBER\"]));",
+              "pm.test(\"No password in response\", () => pm.expect(pm.response.json()).not.to.have.property(\"passwordHash\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "03 - Duplicate registration",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"{{memberPassword}}\",\n  \"name\": \"Postman 測試會員\",\n  \"phone\": \"0912345678\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Error code EMAIL_ALREADY_EXISTS\", () => pm.expect(pm.response.json().code).to.eql(\"EMAIL_ALREADY_EXISTS\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "04 - Reject self-assigned ADMIN",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"{{memberPassword}}\",\n  \"name\": \"Postman 測試會員\",\n  \"phone\": \"0912345678\",\n  \"roles\": [\n    \"ADMIN\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Error code INVALID_BODY\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_BODY\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "05 - Me without token",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/me",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Error code UNAUTHENTICATED\", () => pm.expect(pm.response.json().code).to.eql(\"UNAUTHENTICATED\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "06 - Wrong password",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"wrong-password\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Error code INVALID_CREDENTIALS\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_CREDENTIALS\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "07 - Member login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{memberEmail}}\",\n  \"password\": \"{{memberPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"accessToken\", pm.response.json().accessToken);",
+              "pm.test(\"Token issued\", () => { pm.expect(pm.response.json().tokenType).to.eql(\"Bearer\"); pm.expect(pm.response.json().expiresIn).to.eql(900); });",
+              "pm.test(\"HttpOnly refresh cookie\", () => pm.expect(pm.response.headers.get(\"Set-Cookie\")).to.include(\"HttpOnly\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "08 - My profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Correct member\", () => pm.expect(pm.response.json().email).to.eql(pm.collectionVariables.get(\"memberEmail\")));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "09 - Update my profile",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/me",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Postman 更新名字\",\n  \"phone\": \"0987654321\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Name updated\", () => pm.expect(pm.response.json().name).to.eql(\"Postman 更新名字\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "10 - Member cannot manage courts",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "pm.test(\"Error code FORBIDDEN\", () => pm.expect(pm.response.json().code).to.eql(\"FORBIDDEN\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "11 - Refresh requires header",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/refresh",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "pm.test(\"Error code CSRF_REJECTED\", () => pm.expect(pm.response.json().code).to.eql(\"CSRF_REJECTED\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "12 - Rotate refresh cookie",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Requested-With",
+            "value": "BookingClient"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/refresh",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"accessToken\", pm.response.json().accessToken);",
+              "pm.test(\"Token issued\", () => { pm.expect(pm.response.json().tokenType).to.eql(\"Bearer\"); pm.expect(pm.response.json().expiresIn).to.eql(900); });"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "13 - Logout current session",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Requested-With",
+            "value": "BookingClient"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "14 - Logged-out JWT is rejected",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"Error code UNAUTHENTICATED\", () => pm.expect(pm.response.json().code).to.eql(\"UNAUTHENTICATED\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "15 - Admin login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@booking.local\",\n  \"password\": \"AdminDemo123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"accessToken\", pm.response.json().accessToken);",
+              "pm.test(\"Token issued\", () => { pm.expect(pm.response.json().tokenType).to.eql(\"Bearer\"); pm.expect(pm.response.json().expiresIn).to.eql(900); });",
+              "pm.test(\"ADMIN role\", () => pm.expect(pm.response.json().user.roles).to.include(\"ADMIN\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "16 - All courts including inactive",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Admin fields\", () => { const courts = pm.response.json(); pm.expect(courts).to.be.an(\"array\").and.not.empty; pm.expect(courts[0]).to.have.property(\"version\"); pm.expect(courts[0]).to.have.property(\"status\"); });"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "17 - Create a court",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{managedCourtName}}\",\n  \"type\": \"標準 PU\",\n  \"status\": \"ACTIVE\",\n  \"displayOrder\": 20\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "const court = pm.response.json();",
+              "pm.collectionVariables.set(\"managedCourtId\", court.id);",
+              "pm.collectionVariables.set(\"courtVersion\", String(court.version));",
+              "pm.test(\"New court ACTIVE\", () => { pm.expect(court.status).to.eql(\"ACTIVE\"); pm.expect(court.version).to.eql(0); });"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "18 - Publicly visible new court",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/courts/{{managedCourtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Enabled publicly\", () => pm.expect(pm.response.json().enabled).to.eql(true));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "19 - Duplicate court name",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{managedCourtName}}\",\n  \"type\": \"標準 PU\",\n  \"status\": \"ACTIVE\",\n  \"displayOrder\": 20\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Error code RESOURCE_CONFLICT\", () => pm.expect(pm.response.json().code).to.eql(\"RESOURCE_CONFLICT\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "20 - Disable court",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts/{{managedCourtId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"DISABLED\",\n  \"expectedVersion\": {{courtVersion}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Court disabled\", () => pm.expect(pm.response.json().status).to.eql(\"DISABLED\"));",
+              "pm.collectionVariables.set(\"courtVersion\", String(pm.response.json().version));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "21 - Disabled court hidden",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/courts/{{managedCourtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Error code COURT_NOT_FOUND\", () => pm.expect(pm.response.json().code).to.eql(\"COURT_NOT_FOUND\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "22 - Stale modification rejected",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts/{{managedCourtId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Stale name\",\n  \"expectedVersion\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+              "pm.test(\"Error code STALE_VERSION\", () => pm.expect(pm.response.json().code).to.eql(\"STALE_VERSION\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "23 - Restore court",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts/{{managedCourtId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"ACTIVE\",\n  \"expectedVersion\": {{courtVersion}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Restored ACTIVE\", () => pm.expect(pm.response.json().status).to.eql(\"ACTIVE\"));",
+              "pm.collectionVariables.set(\"courtVersion\", String(pm.response.json().version));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "24 - Retire court preserving history",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts/{{managedCourtId}}?expectedVersion={{courtVersion}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "25 - Admin sees retired history",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts/{{managedCourtId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"History preserved\", () => pm.expect(pm.response.json().status).to.eql(\"RETIRED\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "26 - Retired court hidden",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/courts/{{managedCourtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Error code COURT_NOT_FOUND\", () => pm.expect(pm.response.json().code).to.eql(\"COURT_NOT_FOUND\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "27 - Admin logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Requested-With",
+            "value": "BookingClient"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "28 - Front desk login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"frontdesk@booking.local\",\n  \"password\": \"StaffDemo123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"accessToken\", pm.response.json().accessToken);",
+              "pm.test(\"Token issued\", () => { pm.expect(pm.response.json().tokenType).to.eql(\"Bearer\"); pm.expect(pm.response.json().expiresIn).to.eql(900); });",
+              "pm.test(\"FRONT_DESK role\", () => pm.expect(pm.response.json().user.roles).to.include(\"FRONT_DESK\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "29 - Front desk cannot manage courts",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+              "pm.test(\"Error code FORBIDDEN\", () => pm.expect(pm.response.json().code).to.eql(\"FORBIDDEN\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "30 - Front desk logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Requested-With",
+            "value": "BookingClient"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    }
+  ]
+}

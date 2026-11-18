@@ -1,0 +1,11 @@
+{
+  "subscriptionId": "1fd8238c-2282-4a06-96b0-f002bc282f7f",
+  "resourceGroup": "CCU_booking-demo",
+  "location": "southeastasia",
+  "service": "appservice",
+  "planName": "booking-demo-free-plan",
+  "appName": "ccu-booking-api-1fd823",
+  "sku": "F1",
+  "runtime": "JAVA:21-java21",
+  "corsAllowedOrigins": ["http://localhost:5173", "http://localhost:5174"]
+}

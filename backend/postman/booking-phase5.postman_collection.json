@@ -1,0 +1,1150 @@
+{
+    "info":  {
+                 "description":  "櫃台代訂、每日棋盤、手動報到及維修封場。按順序 Runner 執行；建立專用資料，結束釋放時段並退役場地。",
+                 "name":  "Booking Backend - Phase 5",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+                 "_postman_id":  "3c9d5ec1-3867-4bd5-98f9-cea1196ed511"
+             },
+    "item":  [
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/health",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "name":  "01 Health / 初始化",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p5Run\u0027,pm.variables.replaceIn(\u0027{{$guid}}\u0027));pm.collectionVariables.set(\u0027p5StaffKey\u0027,pm.variables.replaceIn(\u0027{{$guid}}\u0027));pm.collectionVariables.set(\u0027p5BlockKey\u0027,pm.variables.replaceIn(\u0027{{$guid}}\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/auth/login",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"email\":\"admin@booking.local\",\"password\":\"AdminDemo123!\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "02 管理員登入",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p5Admin\u0027,pm.response.json().accessToken);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/auth/login",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"email\":\"frontdesk@booking.local\",\"password\":\"StaffDemo123!\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "03 櫃台登入",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p5Staff\u0027,pm.response.json().accessToken);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/venue",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "name":  "04 場館日期",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\nconst venue=pm.response.json();const taipei=new Date(new Date(venue.serverTime).getTime()+8*3600000);if(taipei.getUTCHours()\u003e=21)taipei.setUTCDate(taipei.getUTCDate()+1);pm.collectionVariables.set(\u0027p5Date\u0027,taipei.toISOString().slice(0,10));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/courts",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"name\":\"P5 {{p5Run}}\",\"type\":\"標準 PU\",\"status\":\"ACTIVE\",\"displayOrder\":91}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "05 專用場地",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\npm.collectionVariables.set(\u0027p5Court\u0027,pm.response.json().id);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/availability?date={{p5Date}}\u0026courtId={{p5Court}}",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "name":  "06 選未來整點",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\nconst slot=pm.response.json().slots.find(s=\u003es.status===\u0027AVAILABLE\u0027);pm.test(\u0027有開放時段\u0027,()=\u003epm.expect(slot).to.exist);if(slot)pm.collectionVariables.set(\u0027p5Start\u0027,slot.startAt);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/auth/register",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"email\":\"p5-{{p5Run}}@example.test\",\"password\":\"MemberDemo123!\",\"name\":\"P5 會員\",\"phone\":\"0912345678\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "07 註冊測試會員",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/auth/login",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"email\":\"p5-{{p5Run}}@example.test\",\"password\":\"MemberDemo123!\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "08 會員登入",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p5Member\u0027,pm.response.json().accessToken);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{p5StaffKey}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"source\":\"PHONE\",\"paymentMethod\":\"CASH\",\"customer\":{\"name\":\"電話代訂\",\"phone\":\"0912345678\"},\"notes\":\"作業 demo\",\"items\":[{\"courtId\":\"{{p5Court}}\",\"startAt\":\"{{p5Start}}\"}]}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "09 櫃台電話代訂",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\nconst order=pm.response.json();pm.collectionVariables.set(\u0027p5Order\u0027,order.id);pm.collectionVariables.set(\u0027p5Version\u0027,order.version);pm.test(\u0027CONFIRMED / UNPAID\u0027,()=\u003e{pm.expect(order.status).to.eql(\u0027CONFIRMED\u0027);pm.expect(order.paymentStatus).to.eql(\u0027UNPAID\u0027);pm.expect(order.expiresAt).to.eql(null);});"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{p5StaffKey}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"source\":\"PHONE\",\"paymentMethod\":\"CASH\",\"customer\":{\"name\":\"電話代訂\",\"phone\":\"0912345678\"},\"notes\":\"作業 demo\",\"items\":[{\"courtId\":\"{{p5Court}}\",\"startAt\":\"{{p5Start}}\"}]}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "10 重複送出不重複訂位",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\npm.test(\u0027同一訂單\u0027,()=\u003epm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\u0027p5Order\u0027)));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{$guid}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/holds",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Member}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"items\":[{\"courtId\":\"{{p5Court}}\",\"startAt\":\"{{p5Start}}\"}]}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "11 會員不能搶已代訂時段",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 409\u0027, () =\u003e pm.response.to.have.status(409));\npm.test(\u0027SLOT_UNAVAILABLE\u0027,()=\u003epm.expect(pm.response.json().code).to.eql(\u0027SLOT_UNAVAILABLE\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/timetable?date={{p5Date}}",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              }
+                                 },
+                     "name":  "12 每日棋盤與聯絡資料",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.test(\u0027含代訂與客人電話\u0027,()=\u003e{const order=pm.response.json().orders.find(o=\u003eo.id===pm.collectionVariables.get(\u0027p5Order\u0027));pm.expect(order.customer.phone).to.eql(\u00270912345678\u0027);});"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders?date={{p5Date}}\u0026size=100",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              }
+                                 },
+                     "name":  "13 日期分頁訂單",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.test(\u0027包含此次代訂\u0027,()=\u003epm.expect(pm.response.json().content.map(o=\u003eo.id)).to.include(pm.collectionVariables.get(\u0027p5Order\u0027)));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "PATCH",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders/{{p5Order}}",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"expectedVersion\":{{p5Version}},\"customer\":{\"name\":\"更正姓名\",\"phone\":\"0987654321\"},\"notes\":\"已聯絡\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "14 更新聯絡資料",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p5Version\u0027,pm.response.json().version);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "PATCH",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders/{{p5Order}}",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"expectedVersion\":0,\"customer\":{\"name\":\"更正姓名\",\"phone\":\"0987654321\"},\"notes\":\"舊版本\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "15 舊版本衝突",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 409\u0027, () =\u003e pm.response.to.have.status(409));\npm.test(\u0027VERSION_CONFLICT\u0027,()=\u003epm.expect(pm.response.json().code).to.eql(\u0027VERSION_CONFLICT\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders/{{p5Order}}/check-in",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"expectedVersion\":{{p5Version}}}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "16 手動報到",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p5Version\u0027,pm.response.json().version);pm.test(\u0027已報到\u0027,()=\u003epm.expect(pm.response.json().checkedInAt).to.be.a(\u0027string\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders/{{p5Order}}/cancellations",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"reason\":\"取消\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "17 已報到不可直接取消",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 409\u0027, () =\u003e pm.response.to.have.status(409));\npm.test(\u0027ORDER_CHECKED_IN\u0027,()=\u003epm.expect(pm.response.json().code).to.eql(\u0027ORDER_CHECKED_IN\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders/{{p5Order}}/check-in-reversals",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"expectedVersion\":{{p5Version}}}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "18 撤銷報到",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p5Version\u0027,pm.response.json().version);pm.test(\u0027報到已撤銷\u0027,()=\u003epm.expect(pm.response.json().checkedInAt).to.eql(null));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders/{{p5Order}}/cancellations",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"reason\":\"Demo 結束\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "19 櫃台取消代訂",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.test(\u0027已取消\u0027,()=\u003epm.expect(pm.response.json().status).to.eql(\u0027CANCELLED\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{p5BlockKey}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/blocks",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"reason\":\"燈具維修 demo\",\"items\":[{\"courtId\":\"{{p5Court}}\",\"startAt\":\"{{p5Start}}\"}]}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "20 管理員維修封場",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\npm.collectionVariables.set(\u0027p5Block\u0027,pm.response.json().id);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{p5BlockKey}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/blocks",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"reason\":\"燈具維修 demo\",\"items\":[{\"courtId\":\"{{p5Court}}\",\"startAt\":\"{{p5Start}}\"}]}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "21 封場重複請求",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\npm.test(\u0027同一封場\u0027,()=\u003epm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\u0027p5Block\u0027)));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/availability?date={{p5Date}}\u0026courtId={{p5Court}}",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "name":  "22 公開棋盤僅顯示維修狀態",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\nconst grid=pm.response.json();pm.test(\u0027MAINTENANCE\u0027,()=\u003epm.expect(grid.slots.find(s=\u003es.startAt===pm.collectionVariables.get(\u0027p5Start\u0027)).status).to.eql(\u0027MAINTENANCE\u0027));pm.test(\u0027不公開客人或維修理由\u0027,()=\u003e{pm.expect(pm.response.text()).not.to.include(\u0027customer\u0027);pm.expect(pm.response.text()).not.to.include(\u0027燈具維修\u0027);});"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{$guid}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/holds",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Member}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"items\":[{\"courtId\":\"{{p5Court}}\",\"startAt\":\"{{p5Start}}\"}]}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "23 會員不能預約維修時段",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 409\u0027, () =\u003e pm.response.to.have.status(409));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{$guid}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/blocks",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"reason\":\"燈具維修 demo\",\"items\":[{\"courtId\":\"{{p5Court}}\",\"startAt\":\"{{p5Start}}\"}]}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "24 櫃台無封場設定權限",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 403\u0027, () =\u003e pm.response.to.have.status(403));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/blocks?date={{p5Date}}",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              }
+                                 },
+                     "name":  "25 查封場清單",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.test(\u0027包含本次封場\u0027,()=\u003epm.expect(pm.response.json().map(b=\u003eb.id)).to.include(pm.collectionVariables.get(\u0027p5Block\u0027)));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "DELETE",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/blocks/{{p5Block}}",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              }
+                                 },
+                     "name":  "26 解除維修封場",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 204\u0027, () =\u003e pm.response.to.have.status(204));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "DELETE",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/blocks/{{p5Block}}",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              }
+                                 },
+                     "name":  "27 解除重試安全",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 204\u0027, () =\u003e pm.response.to.have.status(204));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{$guid}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/holds",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Member}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"items\":[{\"courtId\":\"{{p5Court}}\",\"startAt\":\"{{p5Start}}\"}]}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "28 會員可重新保留",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\npm.collectionVariables.set(\u0027p5Hold\u0027,pm.response.json().id);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "DELETE",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/holds/{{p5Hold}}",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Member}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              }
+                                 },
+                     "name":  "29 清除測試保留",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 204\u0027, () =\u003e pm.response.to.have.status(204));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "DELETE",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/courts/{{p5Court}}?expectedVersion=0",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p5Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              }
+                                 },
+                     "name":  "30 退役專用場地",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 204\u0027, () =\u003e pm.response.to.have.status(204));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 }
+             ],
+    "variable":  [
+                     {
+                         "key":  "baseUrl",
+                         "value":  "http://localhost:8080"
+                     }
+                 ]
+}

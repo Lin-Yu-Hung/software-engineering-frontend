@@ -1,0 +1,925 @@
+{
+    "info":  {
+                 "description":  "作業 demo：25 個請求，會員預約 → DEMO 模擬付款 → 櫃台報到 → 取消 → 維修封場。需要 DEMO_PAYMENTS_ENABLED=true（本機 Compose 預設）。沒有實際請款或退款；前端維持原樣。完整 Runner 跑完会釋放所有占用並退役專用場地。",
+                 "name":  "Booking Backend - Phase 6 Demo",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+                 "_postman_id":  "cc8a0572-dcf1-41fd-8e9f-1d4aadbf866c"
+             },
+    "item":  [
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/health",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "name":  "01 DB 健康與初始化",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p6Run\u0027,pm.variables.replaceIn(\u0027{{$guid}}\u0027));pm.test(\u0027PostgreSQL UP / schema 7\u0027,()=\u003e{pm.expect(pm.response.json().database).to.eql(\u0027UP\u0027);pm.expect(pm.response.json().schemaVersion).to.eql(\u00277\u0027);});"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/auth/login",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"email\":\"admin@booking.local\",\"password\":\"AdminDemo123!\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "02 管理員登入",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p6Admin\u0027,pm.response.json().accessToken);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/auth/login",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"email\":\"frontdesk@booking.local\",\"password\":\"StaffDemo123!\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "03 櫃台登入",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p6Staff\u0027,pm.response.json().accessToken);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/venue",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "name":  "04 依台北時間選 demo 日期",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\nconst venue=pm.response.json();const taipei=new Date(new Date(venue.serverTime).getTime()+8*3600000);if(taipei.getUTCHours()\u003e=21)taipei.setUTCDate(taipei.getUTCDate()+1);pm.collectionVariables.set(\u0027p6Date\u0027,taipei.toISOString().slice(0,10));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/courts",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"name\":\"P6 {{p6Run}}\",\"type\":\"標準 PU\",\"status\":\"ACTIVE\",\"displayOrder\":92}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "05 建立 demo 專用場地",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\npm.collectionVariables.set(\u0027p6Court\u0027,pm.response.json().id);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/availability?date={{p6Date}}\u0026courtId={{p6Court}}",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "name":  "06 查空場並選未來整點",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\nconst slot=pm.response.json().slots.find(s=\u003es.status===\u0027AVAILABLE\u0027);pm.test(\u0027有可預約時段\u0027,()=\u003epm.expect(slot).to.exist);if(slot)pm.collectionVariables.set(\u0027p6Start\u0027,slot.startAt);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/auth/register",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"email\":\"p6-{{p6Run}}@example.test\",\"password\":\"MemberDemo123!\",\"name\":\"Demo 會員\",\"phone\":\"0912345678\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "07 註冊會員",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/auth/login",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"email\":\"p6-{{p6Run}}@example.test\",\"password\":\"MemberDemo123!\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "08 會員登入",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p6Member\u0027,pm.response.json().accessToken);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{$guid}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/holds",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Member}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"items\":[{\"courtId\":\"{{p6Court}}\",\"startAt\":\"{{p6Start}}\"}]}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "09 保留場地十分鐘",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\npm.collectionVariables.set(\u0027p6Hold\u0027,pm.response.json().id);pm.test(\u0027保留 ACTIVE / 價格由後端計算\u0027,()=\u003e{pm.expect(pm.response.json().status).to.eql(\u0027ACTIVE\u0027);pm.expect(pm.response.json().totalAmount).to.be.above(0);});"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{$guid}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/orders",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Member}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"holdId\":\"{{p6Hold}}\",\"customer\":{\"name\":\"Demo 會員\",\"phone\":\"0912345678\"},\"paymentMethod\":\"CREDIT_CARD\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "10 保留轉待付款訂單",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\nconst order=pm.response.json();pm.collectionVariables.set(\u0027p6Order\u0027,order.id);pm.collectionVariables.set(\u0027p6Amount\u0027,order.totalAmount);pm.collectionVariables.set(\u0027p6Version\u0027,order.version);pm.test(\u0027待付款\u0027,()=\u003epm.expect(order.status).to.eql(\u0027PENDING_PAYMENT\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/demo/orders/{{p6Order}}/confirm-payment",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Member}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"amount\":{{p6Amount}}}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "11 會員不能宣告付款成功",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 403\u0027, () =\u003e pm.response.to.have.status(403));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/demo/orders/{{p6Order}}/confirm-payment",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"amount\":1}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "12 金額錯誤不能確認",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 409\u0027, () =\u003e pm.response.to.have.status(409));\npm.test(\u0027金額不符\u0027,()=\u003epm.expect(pm.response.json().code).to.eql(\u0027PAYMENT_AMOUNT_MISMATCH\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/demo/orders/{{p6Order}}/confirm-payment",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"amount\":{{p6Amount}}}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "13 DEMO 模擬付款（無實際請款）",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\nconst payload=pm.response.json();pm.collectionVariables.set(\u0027p6Version\u0027,payload.order.version);pm.test(\u0027DEMO / CONFIRMED / PAID\u0027,()=\u003e{pm.expect(payload.mode).to.eql(\u0027DEMO\u0027);pm.expect(payload.order.status).to.eql(\u0027CONFIRMED\u0027);pm.expect(payload.order.paymentStatus).to.eql(\u0027PAID\u0027);});"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/demo/orders/{{p6Order}}/confirm-payment",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"amount\":{{p6Amount}}}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "14 付款通知重試不重複入帳",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.test(\u0027版本不重複增加\u0027,()=\u003epm.expect(pm.response.json().order.version).to.eql(Number(pm.collectionVariables.get(\u0027p6Version\u0027))));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/timetable?date={{p6Date}}",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              }
+                                 },
+                     "name":  "15 櫃台棋盤看見訂單",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.test(\u0027看見已確認會員預約\u0027,()=\u003e{const order=pm.response.json().orders.find(o=\u003eo.id===pm.collectionVariables.get(\u0027p6Order\u0027));pm.expect(order.status).to.eql(\u0027CONFIRMED\u0027);});"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders/{{p6Order}}/check-in",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"expectedVersion\":{{p6Version}}}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "16 櫃台手動報到",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p6Version\u0027,pm.response.json().version);pm.test(\u0027記錄到場\u0027,()=\u003epm.expect(pm.response.json().checkedInAt).to.be.a(\u0027string\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/orders/{{p6Order}}/cancellations",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Member}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"reason\":\"Demo 取消\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "17 已報到不可自行取消",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 409\u0027, () =\u003e pm.response.to.have.status(409));\npm.test(\u0027先撤銷報到\u0027,()=\u003epm.expect(pm.response.json().code).to.eql(\u0027ORDER_CHECKED_IN\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/orders/{{p6Order}}/check-in-reversals",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Staff}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"expectedVersion\":{{p6Version}}}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "18 櫃台撤銷誤報到",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.collectionVariables.set(\u0027p6Version\u0027,pm.response.json().version);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/orders/{{p6Order}}/cancellations",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Member}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"reason\":\"Demo 結束\"}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "19 會員取消 / 退款待金流同學處理",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.test(\u0027取消並標示退款待處理\u0027,()=\u003e{const order=pm.response.json();pm.expect(order.status).to.eql(\u0027CANCELLED\u0027);pm.expect(order.paymentStatus).to.eql(\u0027PAID\u0027);pm.expect(order.refundStatus).to.eql(\u0027PENDING_REVIEW\u0027);});"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/availability?date={{p6Date}}\u0026courtId={{p6Court}}",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "name":  "20 取消立即釋放時段",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.test(\u0027AVAILABLE\u0027,()=\u003epm.expect(pm.response.json().slots.find(s=\u003es.startAt===pm.collectionVariables.get(\u0027p6Start\u0027)).status).to.eql(\u0027AVAILABLE\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "POST",
+                                     "header":  [
+                                                    {
+                                                        "key":  "Content-Type",
+                                                        "value":  "application/json"
+                                                    },
+                                                    {
+                                                        "key":  "Idempotency-Key",
+                                                        "value":  "{{$guid}}"
+                                                    }
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/blocks",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              },
+                                     "body":  {
+                                                  "raw":  "{\"reason\":\"Demo 維修\",\"items\":[{\"courtId\":\"{{p6Court}}\",\"startAt\":\"{{p6Start}}\"}]}",
+                                                  "options":  {
+                                                                  "raw":  {
+                                                                              "language":  "json"
+                                                                          }
+                                                              },
+                                                  "mode":  "raw"
+                                              }
+                                 },
+                     "name":  "21 管理員批次維修封場",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 201\u0027, () =\u003e pm.response.to.have.status(201));\npm.collectionVariables.set(\u0027p6Block\u0027,pm.response.json().id);"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/availability?date={{p6Date}}\u0026courtId={{p6Court}}",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "name":  "22 公開日曆反映維修",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.test(\u0027MAINTENANCE\u0027,()=\u003epm.expect(pm.response.json().slots.find(s=\u003es.startAt===pm.collectionVariables.get(\u0027p6Start\u0027)).status).to.eql(\u0027MAINTENANCE\u0027));"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "DELETE",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/blocks/{{p6Block}}",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              }
+                                 },
+                     "name":  "23 解除 demo 封場",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 204\u0027, () =\u003e pm.response.to.have.status(204));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "DELETE",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/backoffice/courts/{{p6Court}}?expectedVersion=0",
+                                     "auth":  {
+                                                  "bearer":  [
+                                                                 {
+                                                                     "key":  "token",
+                                                                     "type":  "string",
+                                                                     "value":  "{{p6Admin}}"
+                                                                 }
+                                                             ],
+                                                  "type":  "bearer"
+                                              }
+                                 },
+                     "name":  "24 退役 demo 專用場地",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 204\u0027, () =\u003e pm.response.to.have.status(204));\n"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 },
+                 {
+                     "request":  {
+                                     "method":  "GET",
+                                     "header":  [
+
+                                                ],
+                                     "url":  "{{baseUrl}}/api/v1/courts",
+                                     "auth":  {
+                                                  "type":  "noauth"
+                                              }
+                                 },
+                     "name":  "25 完成 / 原始場地仍可使用",
+                     "event":  [
+                                   {
+                                       "script":  {
+                                                      "exec":  [
+                                                                   "pm.test(\u0027HTTP 200\u0027, () =\u003e pm.response.to.have.status(200));\npm.test(\u0027demo 場地已退役，原始場地仍啟用\u0027,()=\u003e{pm.expect(pm.response.json().map(c=\u003ec.id)).not.to.include(pm.collectionVariables.get(\u0027p6Court\u0027));pm.expect(pm.response.json().length).to.be.at.least(6);});"
+                                                               ],
+                                                      "type":  "text/javascript"
+                                                  },
+                                       "listen":  "test"
+                                   }
+                               ]
+                 }
+             ],
+    "variable":  [
+                     {
+                         "key":  "baseUrl",
+                         "value":  "http://localhost:8080"
+                     }
+                 ]
+}

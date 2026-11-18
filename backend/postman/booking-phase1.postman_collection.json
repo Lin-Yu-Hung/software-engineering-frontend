@@ -1,0 +1,232 @@
+{
+  "info": {
+    "_postman_id": "a0633cc2-a740-4de1-b9b4-72b04b2f14be",
+    "name": "Booking Backend - Phase 1",
+    "description": "Run requests in order. Real PostgreSQL/Flyway verification; public read-only endpoints. Expected error responses are included.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "01 - Database health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "const health = pm.response.json();",
+              "pm.test(\"PostgreSQL and migrations are ready\", function () {",
+              "  pm.expect(health.status).to.eql(\"UP\");",
+              "  pm.expect(health.database).to.eql(\"UP\");",
+              "  pm.expect(health.databaseName).to.be.a(\"string\").and.not.empty;",
+              "  pm.expect(Number(health.schemaVersion)).to.be.at.least(2);",
+              "  pm.expect(health.courtCount).to.be.at.least(6);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/health"
+      },
+      "response": []
+    },
+    {
+      "name": "02 - Active courts",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "const courts = pm.response.json();",
+              "pm.test(\"Active courts are read from the database\", function () {",
+              "  pm.expect(courts).to.be.an(\"array\").and.not.empty;",
+              "  courts.forEach(court => {",
+              "    pm.expect(court.enabled).to.eql(true);",
+              "    pm.expect(court.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);",
+              "    pm.expect(court.name).to.be.a(\"string\");",
+              "  });",
+              "});",
+              "if (courts.length > 0) pm.collectionVariables.set(\"courtId\", courts[0].id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/courts"
+      },
+      "response": []
+    },
+    {
+      "name": "03 - Court details",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Selected court matches\", function () {",
+              "  const court = pm.response.json();",
+              "  pm.expect(court.id).to.eql(pm.variables.get(\"courtId\"));",
+              "  pm.expect(court.enabled).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/courts/{{courtId}}"
+      },
+      "response": []
+    },
+    {
+      "name": "04 - Missing court (expected 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"COURT_NOT_FOUND\", function () { pm.expect(pm.response.json().code).to.eql(\"COURT_NOT_FOUND\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/courts/ffffffff-ffff-ffff-ffff-ffffffffffff"
+      },
+      "response": []
+    },
+    {
+      "name": "05 - Invalid ID (expected 400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });",
+              "pm.test(\"INVALID_PARAMETER\", function () { pm.expect(pm.response.json().code).to.eql(\"INVALID_PARAMETER\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/courts/not-a-uuid"
+      },
+      "response": []
+    },
+    {
+      "name": "06 - Write unavailable (expected 405)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 405\", function () { pm.response.to.have.status(405); });",
+              "pm.test(\"METHOD_NOT_ALLOWED\", function () { pm.expect(pm.response.json().code).to.eql(\"METHOD_NOT_ALLOWED\"); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/courts"
+      },
+      "response": []
+    },
+    {
+      "name": "07 - OpenAPI contract",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Implemented API paths are documented\", function () {",
+              "  const spec = pm.response.json();",
+              "  pm.expect(spec.paths).to.have.property(\"/api/v1/health\");",
+              "  pm.expect(spec.paths).to.have.property(\"/api/v1/courts\");",
+              "  pm.expect(spec.paths).to.have.property(\"/api/v1/courts/{courtId}\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/v3/api-docs"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "courtId",
+      "value": "00000000-0000-0000-0000-000000000001",
+      "type": "string"
+    }
+  ]
+}

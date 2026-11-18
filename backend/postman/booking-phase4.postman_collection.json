@@ -1,0 +1,1078 @@
+{
+  "info": {
+    "_postman_id": "71c3ec12-9d0c-43bc-b20a-199f57317cf9",
+    "name": "Booking Backend - Phase 4",
+    "description": "Run in order. Creates its own test court and members. Verifies hold, order, ownership, conflict, cancellation and cleanup. Leaves cancelled order history and retired court.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{bookingToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "bookingToken",
+      "value": ""
+    },
+    {
+      "key": "courtId",
+      "value": ""
+    },
+    {
+      "key": "holdId",
+      "value": ""
+    },
+    {
+      "key": "orderId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Database V6",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/health",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Schema V6\",()=>pm.expect(Number(pm.response.json().schemaVersion)).to.be.at.least(6));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "02 - Tomorrow in Taipei",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/venue",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const tomorrow=new Date(pm.response.json().earliestDate+\"T00:00:00Z\");tomorrow.setUTCDate(tomorrow.getUTCDate()+1);pm.collectionVariables.set(\"queryDate\",tomorrow.toISOString().slice(0,10));",
+              "pm.collectionVariables.set(\"suffix\",String(Date.now()));",
+              "pm.collectionVariables.set(\"holdKey\",\"phase4-hold-\"+Date.now());pm.collectionVariables.set(\"orderKey\",\"phase4-order-\"+Date.now());",
+              "pm.test(\"Booking enabled\",()=>pm.expect(pm.response.json().bookingEnabled).to.eql(true));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "03 - Admin login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@booking.local\",\n  \"password\": \"AdminDemo123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"bookingToken\",pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "04 - Create dedicated demo court",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Phase4 demo {{suffix}}\",\n  \"type\": \"標準 PU\",\n  \"status\": \"ACTIVE\",\n  \"displayOrder\": 90\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"courtId\",pm.response.json().id);pm.collectionVariables.set(\"courtVersion\",pm.response.json().version);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "05 - Select two available slots",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/availability?date={{queryDate}}&courtId={{courtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const slots=pm.response.json().slots.filter(slot=>slot.status===\"AVAILABLE\").slice(0,2);",
+              "pm.test(\"Two demo slots exist\",()=>pm.expect(slots).to.have.lengthOf(2));",
+              "pm.collectionVariables.set(\"holdBody\",JSON.stringify({items:slots.map(slot=>({courtId:slot.courtId,startAt:slot.startAt}))}));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "06A - Register member A",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"phase4-a-{{suffix}}@example.test\",\n  \"password\": \"MemberDemo123!\",\n  \"name\": \"Demo會員A\",\n  \"phone\": \"0912345678\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "06B - Register member B",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"phase4-b-{{suffix}}@example.test\",\n  \"password\": \"MemberDemo123!\",\n  \"name\": \"Demo會員B\",\n  \"phone\": \"0912345678\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "07 - Member A login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"phase4-a-{{suffix}}@example.test\",\n  \"password\": \"MemberDemo123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"bookingToken\",pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "08 - Hold two slots",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{holdKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/holds",
+        "body": {
+          "mode": "raw",
+          "raw": "{{holdBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"holdId\",pm.response.json().id);pm.collectionVariables.set(\"holdExpiry\",pm.response.json().expiresAt);pm.collectionVariables.set(\"amount\",pm.response.json().totalAmount);",
+              "pm.test(\"Hold active\",()=>pm.expect(pm.response.json().status).to.eql(\"ACTIVE\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "09 - Replay same hold request",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{holdKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/holds",
+        "body": {
+          "mode": "raw",
+          "raw": "{{holdBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.test(\"Same hold\",()=>pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"holdId\")));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "10 - Public held state",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/availability?date={{queryDate}}&courtId={{courtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Two HOLDING slots\",()=>pm.expect(pm.response.json().slots.filter(slot=>slot.status===\"HOLDING\")).to.have.lengthOf(2));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "11 - Create pending order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{orderKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"holdId\": \"{{holdId}}\",\n  \"customer\": {\n    \"name\": \"Demo會員A\",\n    \"phone\": \"0912345678\"\n  },\n  \"paymentMethod\": \"CREDIT_CARD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"orderId\",pm.response.json().id);",
+              "pm.test(\"Same amount and expiry\",()=>{const order=pm.response.json();pm.expect(order.totalAmount).to.eql(Number(pm.collectionVariables.get(\"amount\")));pm.expect(order.expiresAt).to.eql(pm.collectionVariables.get(\"holdExpiry\"));pm.expect(order.status).to.eql(\"PENDING_PAYMENT\");});"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "12 - Replay order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{orderKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"holdId\": \"{{holdId}}\",\n  \"customer\": {\n    \"name\": \"Demo會員A\",\n    \"phone\": \"0912345678\"\n  },\n  \"paymentMethod\": \"CREDIT_CARD\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.test(\"Same order\",()=>pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"orderId\")));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "13 - My orders",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/orders?scope=upcoming&page=0&size=20"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Own order listed\",()=>pm.expect(pm.response.json().content.map(order=>order.id)).to.include(pm.collectionVariables.get(\"orderId\")));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "14 - Order details",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/orders/{{orderId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Two immutable item prices\",()=>pm.expect(pm.response.json().items).to.have.lengthOf(2));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "15 - Member A logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Requested-With",
+            "value": "BookingClient"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "16 - Member B login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"phase4-b-{{suffix}}@example.test\",\n  \"password\": \"MemberDemo123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"bookingToken\",pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "17 - Other member cannot see order",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/orders/{{orderId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 404\",()=>pm.response.to.have.status(404));",
+              "pm.test(\"Error ORDER_NOT_FOUND\",()=>pm.expect(pm.response.json().code).to.eql(\"ORDER_NOT_FOUND\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "18 - Cannot reserve booked slots",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "phase4-conflict-{{suffix}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/holds",
+        "body": {
+          "mode": "raw",
+          "raw": "{{holdBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+              "pm.test(\"Error SLOT_UNAVAILABLE\",()=>pm.expect(pm.response.json().code).to.eql(\"SLOT_UNAVAILABLE\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "19 - Member B logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Requested-With",
+            "value": "BookingClient"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "20 - Member A login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"phase4-a-{{suffix}}@example.test\",\n  \"password\": \"MemberDemo123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"bookingToken\",pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "21 - Cancel unpaid order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/orders/{{orderId}}/cancellations",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Demo完成取消\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Cancel without refund\",()=>{pm.expect(pm.response.json().status).to.eql(\"CANCELLED\");pm.expect(pm.response.json().refundStatus).to.eql(\"NOT_REQUIRED\");});"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "22 - Slots released",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/availability?date={{queryDate}}&courtId={{courtId}}",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"No occupied slots\",()=>pm.expect(pm.response.json().slots.filter(slot=>[\"HOLDING\",\"BOOKED\"].includes(slot.status))).to.have.lengthOf(0));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "23 - Hold again with new key",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "phase4-again-{{suffix}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/holds",
+        "body": {
+          "mode": "raw",
+          "raw": "{{holdBody}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\",()=>pm.response.to.have.status(201));",
+              "pm.collectionVariables.set(\"holdId\",pm.response.json().id);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "24 - Release hold",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/holds/{{holdId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "25 - Member A logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Requested-With",
+            "value": "BookingClient"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "26 - Admin login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@booking.local\",\n  \"password\": \"AdminDemo123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"bookingToken\",pm.response.json().accessToken);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "27 - Retire demo court",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/backoffice/courts/{{courtId}}?expectedVersion={{courtVersion}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "28 - Admin logout",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "X-Requested-With",
+            "value": "BookingClient"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/auth/logout",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\",()=>pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    }
+  ]
+}

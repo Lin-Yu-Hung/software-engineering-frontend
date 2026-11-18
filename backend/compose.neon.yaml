@@ -1,0 +1,19 @@
+name: booking-neon
+
+services:
+  backend:
+    build:
+      context: .
+    # Neon CLI owns the root env file. Override its path for a temporary verification branch.
+    env_file:
+      - ${NEON_ENV_FILE:-../.env.local}
+    environment:
+      SPRING_PROFILES_ACTIVE: neon
+      SERVER_PORT: 8080
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET before starting the Neon backend}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174}
+      SECURE_COOKIE: ${SECURE_COOKIE:-false}
+      DEMO_USERS_ENABLED: ${DEMO_USERS_ENABLED:-false}
+      DEMO_PAYMENTS_ENABLED: ${DEMO_PAYMENTS_ENABLED:-false}
+    ports:
+      - "127.0.0.1:${NEON_API_PORT:-8081}:8080"
