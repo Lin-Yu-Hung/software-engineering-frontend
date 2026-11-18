@@ -84,6 +84,8 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/v1/venue", "/api/v1/availability").permitAll()
                         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login",
                                 "/api/v1/auth/refresh", "/api/v1/auth/logout").permitAll()
+                        // 由綠界伺服器或付款後導回的瀏覽器呼叫：不會帶 JWT，改由 CheckMacValue 簽章驗證身分。
+                        .requestMatchers("/api/v1/payments/ecpay/notify", "/api/v1/payments/ecpay/result").permitAll()
                         .requestMatchers("/api/v1/me").authenticated()
                         .requestMatchers("/api/v1/holds", "/api/v1/holds/**", "/api/v1/orders", "/api/v1/orders/**").hasRole("MEMBER")
                         .requestMatchers("/api/v1/backoffice/courts", "/api/v1/backoffice/courts/**").hasRole("ADMIN")

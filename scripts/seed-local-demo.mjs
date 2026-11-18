@@ -27,8 +27,8 @@ const login = (email, password) => request('POST', '/auth/login', { email, passw
 
 try {
   const health = await request('GET', '/health')
-  if (health.databaseName !== 'booking' || health.database !== 'UP' || health.schemaVersion !== '7') {
-    throw new Error('僅支援本機預設 booking 資料庫（Flyway V7）；不接受 Neon neondb 或其他資料庫。')
+  if (health.databaseName !== 'booking' || health.database !== 'UP' || health.schemaVersion !== '8') {
+    throw new Error('僅支援本機預設 booking 資料庫（Flyway V8）；不接受 Neon neondb 或其他資料庫。')
   }
   console.log(`範例資料目標：${base}／本機 booking；不會清空既有資料。`)
   const admin = (await login('admin@booking.local', 'AdminDemo123!')).accessToken

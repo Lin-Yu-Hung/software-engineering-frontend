@@ -36,7 +36,7 @@ async function actor(suffix) {
 }
 try {
   const health = expect(await api('GET', '/health'), 200, 'live SQL health')
-  verify(health.database === 'UP' && health.schemaVersion === '7', 'database UP with Flyway V7')
+  verify(health.database === 'UP' && health.schemaVersion === '8', 'database UP with Flyway V8')
   const courts = expect(await api('GET', '/courts'), 200, 'read seeded courts')
   verify(courts.length >= 6, 'six seeded courts exist')
   const venue = expect(await api('GET', '/venue'), 200, 'venue clock')

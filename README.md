@@ -1,11 +1,12 @@
 # 羽球場館線上預約系統
 
-Vue 3／Vite 前端與 Java 21／Spring Boot／PostgreSQL 後端。提供場地日曆、會員預約、訂單及共用場館後台；真正的 ECPay 付款與退款尚待整合。
+Vue 3／Vite 前端與 Java 21／Spring Boot／PostgreSQL 後端。提供場地日曆、會員預約、訂單及共用場館後台；ECPay 信用卡付款已完成後端測試環境串接，前端結帳串接與退款尚待整合。
 
 ## 文件入口
 
 - [後端串接手冊](backend/README.md)：本機啟動、範例資料、帳號、API 流程及串接限制。
 - [雲端部署手冊](backend/AZURE_DEPLOYMENT.md)：Neon 連線、Azure 設定、打包與部署。
+- [綠界金流串接手冊](backend/ECPAY.md)：信用卡付款流程、本機 ngrok 測試刷卡、付款狀態與常見問題。
 - [需求規格](REQUIREMENTS.md)：完整目標需求，不代表目前功能全部完成。
 
 ## 啟動前端

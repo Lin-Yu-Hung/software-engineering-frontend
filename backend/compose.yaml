@@ -34,6 +34,11 @@ services:
       DEMO_PAYMENTS_ENABLED: ${DEMO_PAYMENTS_ENABLED:-true}
       HOLD_SECONDS: ${HOLD_SECONDS:-600}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:5174}
+      # 綠界設定：在 backend/.env 設定 ECPAY_RETURN_URL = 你的 ngrok 網址 + /api/v1/payments/ecpay/notify
+      ECPAY_RETURN_URL: ${ECPAY_RETURN_URL:-}
+      ECPAY_ORDER_RESULT_URL: ${ECPAY_ORDER_RESULT_URL:-http://localhost:8080/api/v1/payments/ecpay/result}
+      ECPAY_FRONTEND_RESULT_URL: ${ECPAY_FRONTEND_RESULT_URL:-http://localhost:5173/my-bookings}
+      ECPAY_ACCEPT_SIMULATED: ${ECPAY_ACCEPT_SIMULATED:-false}
     ports:
       - "127.0.0.1:${API_PORT:-8080}:8080"
     depends_on:

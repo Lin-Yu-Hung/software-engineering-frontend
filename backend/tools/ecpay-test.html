@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ECPay test submit</title>
+<body style="font-family:sans-serif;max-width:720px;margin:24px auto;padding:0 16px">
+<h2>綠界測試刷卡</h2>
+<p>貼上 <code>POST /api/v1/orders/{orderId}/payments/ecpay</code> 的完整回應 JSON：</p>
+<textarea id="json" rows="14" style="width:100%"></textarea>
+<p><button onclick="go()">送到綠界</button></p>
+<p>測試卡號 4311-9522-2222-2222，CVV 任意三碼，有效期限填未來日期，3D 簡訊驗證碼 1234。</p>
+<script>
+function go() {
+  const { action, fields } = JSON.parse(document.getElementById('json').value);
+  const form = document.createElement('form');
+  form.method = 'POST'; form.action = action;
+  for (const [k, v] of Object.entries(fields)) {
+    const input = document.createElement('input');
+    input.type = 'hidden'; input.name = k; input.value = v; form.appendChild(input);
+  }
+  document.body.appendChild(form); form.submit();
+}
+</script>

@@ -70,7 +70,7 @@ class BackendIntegrationTests {
         assertThat(JsonPath.<String>read(response.body(), "$.status")).isEqualTo("UP");
         assertThat(JsonPath.<String>read(response.body(), "$.database")).isEqualTo("UP");
         assertThat(JsonPath.<String>read(response.body(), "$.databaseName")).endsWith("_test");
-        assertThat(JsonPath.<String>read(response.body(), "$.schemaVersion")).isEqualTo("7");
+        assertThat(JsonPath.<String>read(response.body(), "$.schemaVersion")).isEqualTo("8");
         assertThat(JsonPath.<Integer>read(response.body(), "$.courtCount")).isGreaterThanOrEqualTo(6);
     }
 
