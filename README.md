@@ -31,3 +31,19 @@ docker compose up --build -d postgres backend
 ```
 
 Swagger：`http://localhost:8080/swagger-ui.html`。範例資料與 API 操作請閱讀[後端串接手冊](backend/README.md)。
+
+## 直接使用 Azure API（不需 Docker）
+
+前端串接或使用 Postman 時，也可直接呼叫已部署的 Azure 後端，不需啟動 Docker，也不需安裝本機 Java 或 PostgreSQL。
+
+| 用途 | 網址 |
+| --- | --- |
+| API origin／Postman baseUrl | `https://ccu-booking-api-1fd823.azurewebsites.net` |
+| Swagger 中文說明 | [開啟 Swagger](https://ccu-booking-api-1fd823.azurewebsites.net/swagger-ui.html) |
+| 健康檢查 | [檢查 API 與資料庫](https://ccu-booking-api-1fd823.azurewebsites.net/api/v1/health) |
+
+Postman 將 `baseUrl` 改為上面的 origin，後面不加 `/api/v1`，collection 已包含此前綴。前端請將 API 請求指向此 origin；仍須完成實際串接，單純啟動 Vue 不會自動切換資料來源。
+
+雲端使用共用的 Neon 資料庫，新增、修改與取消都會實際影響共用資料。請自行註冊會員；本機示範帳號與模擬付款在 Azure 上停用，`demo:seed` 和完整流程版 Postman 請使用本機環境。
+
+首次呼叫可能因閒置暖機而較慢，可先開啟健康檢查，確認 `status` 與 `database` 都是 `UP`。瀏覽器的 CORS、登入續期及 cookie 限制見[後端串接手冊](backend/README.md#7-前端串接限制)。需要修改或除錯後端程式時，請使用本機開發環境。
