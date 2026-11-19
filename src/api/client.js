@@ -1,3 +1,5 @@
+import { beginApiLoading, endApiLoading } from '../stores/loadingStore'
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
 
 let accessTokenGetter = () => null
@@ -97,69 +99,76 @@ export async function apiRequest(
     retryOn401 = true,
     idempotencyKey,
     cookieCsrf = false,
+    silent = false,
   } = {},
 ) {
-  const finalHeaders = { ...headers }
-
-  if (body !== undefined && !finalHeaders['Content-Type']) {
-    finalHeaders['Content-Type'] = 'application/json'
-  }
-  if (idempotencyKey) {
-    finalHeaders['Idempotency-Key'] = idempotencyKey
-  }
-  if (cookieCsrf) {
-    finalHeaders['X-Requested-With'] = 'BookingClient'
-  }
-  if (auth) {
-    const token = accessTokenGetter()
-    if (token) {
-      finalHeaders.Authorization = `Bearer ${token}`
-    }
-  }
-
-  let response
+  if (!silent) beginApiLoading()
   try {
-    response = await fetch(buildUrl(path, query), {
-      method,
-      headers: finalHeaders,
-      credentials: 'include',
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    })
-  } catch {
-    throw new ApiRequestError('無法連線至後端 API，請確認後端服務已啟動或檢查代理設定', {
-      status: 0,
-      code: 'NETWORK_ERROR',
-    })
-  }
+    const finalHeaders = { ...headers }
 
-  if (response.status === 401 && auth && retryOn401 && refreshHandler) {
-    const refreshed = await performSingleRefresh()
-    if (refreshed) {
-      return apiRequest(path, {
+    if (body !== undefined && !finalHeaders['Content-Type']) {
+      finalHeaders['Content-Type'] = 'application/json'
+    }
+    if (idempotencyKey) {
+      finalHeaders['Idempotency-Key'] = idempotencyKey
+    }
+    if (cookieCsrf) {
+      finalHeaders['X-Requested-With'] = 'BookingClient'
+    }
+    if (auth) {
+      const token = accessTokenGetter()
+      if (token) {
+        finalHeaders.Authorization = `Bearer ${token}`
+      }
+    }
+
+    let response
+    try {
+      response = await fetch(buildUrl(path, query), {
         method,
-        query,
-        body,
-        headers,
-        auth,
-        retryOn401: false,
-        idempotencyKey,
-        cookieCsrf,
+        headers: finalHeaders,
+        credentials: 'include',
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      })
+    } catch {
+      throw new ApiRequestError('無法連線至後端 API，請確認後端服務已啟動或檢查代理設定', {
+        status: 0,
+        code: 'NETWORK_ERROR',
       })
     }
-    if (unauthorizedHandler) unauthorizedHandler()
-  }
 
-  if (!response.ok) {
-    throw await parseErrorResponse(response)
-  }
+    if (response.status === 401 && auth && retryOn401 && refreshHandler) {
+      const refreshed = await performSingleRefresh()
+      if (refreshed) {
+        return await apiRequest(path, {
+          method,
+          query,
+          body,
+          headers,
+          auth,
+          retryOn401: false,
+          idempotencyKey,
+          cookieCsrf,
+          silent,
+        })
+      }
+      if (unauthorizedHandler) unauthorizedHandler()
+    }
 
-  if (response.status === 204) {
-    return null
-  }
+    if (!response.ok) {
+      throw await parseErrorResponse(response)
+    }
 
-  const contentType = response.headers.get('content-type') || ''
-  if (contentType.includes('application/json')) {
-    return response.json()
+    if (response.status === 204) {
+      return null
+    }
+
+    const contentType = response.headers.get('content-type') || ''
+    if (contentType.includes('application/json')) {
+      return await response.json()
+    }
+    return await response.text()
+  } finally {
+    if (!silent) endApiLoading()
   }
-  return response.text()
 }
