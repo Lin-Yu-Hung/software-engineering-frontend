@@ -74,6 +74,8 @@ api('GET', '/api/v1/backoffice/blocks?date={{queryDate}}', '查詢指定日期�
 api('DELETE', '/api/v1/backoffice/blocks/{{blockId}}', '解除維修封場', '解除指定封場並釋放時段，不需要 body。')
 folder('10｜本機示範付款', '需 ADMIN 且 DEMO_PAYMENTS_ENABLED=true；Azure 目前停用此功能。')
 api('POST', '/api/v1/demo/orders/{{orderId}}/confirm-payment', '模擬付款成功', '只供本機展示，不會實際扣款。範例 amount=300，必須改成指定訂單 totalAmount 的精確整數金額。', { body: { amount: 300 } })
+folder('11｜管理員帳號', '需以既有 ADMIN 登入並將其權杖填入 accessToken；一般會員與櫃台不可操作。')
+api('POST', '/api/v1/backoffice/admins', '新增管理員帳號', '僅新增帳號，不提升既有會員角色或切換目前登入身分。Email 不可重複；密碼 8–72 字元、UTF-8 最多 72 bytes，不強制大小寫或特殊符號。第一位管理員仍需由本機初始化或資料庫授權。回應 201；重複 Email 回 409，驗證失敗回 400 並附 errors 欄位。', { body: { email: 'admin-new@example.test', password: 'AdminDemo123!', name: '新管理員', phone: '0912345678' } })
 
 const collection = {
   info: { name: '羽球場館預約系統｜純 API 與 Body 範例', schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json', description: '每個 HTTP 方法與路徑僅列一次，沒有自動測試或資料產生腳本。需要 JSON body 的請求已填入範例；GET、DELETE 及以 cookie 操作的續期／登出不送 body。預設 baseUrl=http://localhost:8080。可手動改為 Azure origin。請先設定 collection Variables；ID、未來日期、最新版本及 accessToken 必須由你手動從查詢／建立回應複製。按 Send 的新增／修改／刪除請求會實際變更所連資料庫。Azure 固定示範帳號與模擬付款停用。' },

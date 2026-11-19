@@ -1080,6 +1080,40 @@
           "response": []
         }
       ]
+    },
+    {
+      "name": "11｜管理員帳號",
+      "description": "需以既有 ADMIN 登入並將其權杖填入 accessToken；一般會員與櫃台不可操作。",
+      "item": [
+        {
+          "name": "新增管理員帳號",
+          "request": {
+            "method": "POST",
+            "description": "僅新增帳號，不提升既有會員角色或切換目前登入身分。Email 不可重複；密碼 8–72 字元、UTF-8 最多 72 bytes，不強制大小寫或特殊符號。第一位管理員仍需由本機初始化或資料庫授權。回應 201；重複 Email 回 409，驗證失敗回 400 並附 errors 欄位。",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/backoffice/admins",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin-new@example.test\",\n  \"password\": \"AdminDemo123!\",\n  \"name\": \"新管理員\",\n  \"phone\": \"0912345678\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        }
+      ]
     }
   ]
 }

@@ -15,6 +15,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
@@ -52,12 +53,22 @@ public class AuthService {
 
     @Transactional
     public MeResponse register(RegisterRequest request) {
+        return createAccount(request, Role.MEMBER);
+    }
+
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public MeResponse createAdmin(RegisterRequest request) {
+        return createAccount(request, Role.ADMIN);
+    }
+
+    private MeResponse createAccount(RegisterRequest request, Role role) {
         checkPasswordBytes(request.password());
         String email = normalize(request.email());
         if (users.findByEmail(email).isPresent()) throw duplicateEmail();
         try {
             UserAccount user = users.saveAndFlush(new UserAccount(email, passwords.encode(request.password()),
-                    request.name().strip(), request.phone().strip(), Role.MEMBER, clock.instant()));
+                    request.name().strip(), request.phone().strip(), role, clock.instant()));
             return MeResponse.from(user);
         } catch (DataIntegrityViolationException exception) {
             // The unique key also protects simultaneous registration attempts.

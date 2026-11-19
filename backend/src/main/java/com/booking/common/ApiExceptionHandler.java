@@ -3,6 +3,8 @@ package com.booking.common;
 import com.booking.court.CourtNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.stream.Collectors;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -35,7 +37,21 @@ public class ApiExceptionHandler {
         return error(exception.getStatus(), exception.getCode(), exception.getMessage(), request);
     }
 
-    @ExceptionHandler({MethodArgumentNotValidException.class, HandlerMethodValidationException.class,
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    ResponseEntity<ValidationErrorResponse> invalidFields(MethodArgumentNotValidException exception,
+                                                         HttpServletRequest request) {
+        var fields = exception.getBindingResult().getFieldErrors().stream()
+                .map(field -> new ValidationErrorResponse.FieldViolation(field.getField(), field.getDefaultMessage()))
+                .distinct().sorted(Comparator.comparing(ValidationErrorResponse.FieldViolation::field)
+                        .thenComparing(ValidationErrorResponse.FieldViolation::message)).toList();
+        String message = fields.stream().map(field -> field.field() + "：" + field.message())
+                .collect(Collectors.joining("；"));
+        return ResponseEntity.badRequest().body(new ValidationErrorResponse("VALIDATION_FAILED",
+                message.isEmpty() ? "請檢查必填欄位、格式與長度" : message,
+                request.getRequestURI(), Instant.now(), fields));
+    }
+
+    @ExceptionHandler({HandlerMethodValidationException.class,
             ServletRequestBindingException.class})
     ResponseEntity<ApiError> validation(HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", "請檢查必填欄位、格式與長度", request);

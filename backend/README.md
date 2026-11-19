@@ -62,7 +62,7 @@ npm.cmd run demo:seed
 
 | 檔案 | 用途 |
 | --- | --- |
-| [純 API 版](postman/booking-api.postman_collection.json) | 43 個 API，手動 Send，含 19 個 JSON body 範例 |
+| [純 API 版](postman/booking-api.postman_collection.json) | 44 個 API，手動 Send，含 20 個 JSON body 範例 |
 | [流程版](postman/booking-all.postman_collection.json) | 六階段、152 個案例，供本機 Collection Runner |
 | [本機環境](postman/local.postman_environment.json) | baseUrl 預設 localhost:8080 |
 
@@ -90,6 +90,28 @@ npm.cmd run demo:seed
 | 示範付款 | `POST /demo/orders/{orderId}/confirm-payment` | ADMIN 且開關啟用 |
 
 ADMIN 包含櫃台權限，不自動包含 MEMBER。註冊只建立會員，不能自行指定管理員角色。
+
+### 新增管理員
+
+使用現有 ADMIN 登入，帶其 Bearer token 呼叫 `POST /api/v1/backoffice/admins`：
+
+```json
+{"email":"admin-new@example.test","password":"AdminDemo123!","name":"新管理員","phone":"0912345678"}
+```
+
+成功回傳 201 與帳號資料（不回密碼、不切換登入身分）。未登入回 401，會員／櫃台回 403，Email 已存在回 409；此 API 不提升既有會員角色。第一位管理員仍需由本機示範初始化或資料庫授權建立，不提供公開建立入口。目前先提供 Swagger／Postman 操作，前端尚未有新增管理員表單。
+
+會員註冊與新增管理員密碼都需 8–72 字元、UTF-8 不超過 72 bytes，沒有強制大小寫、數字或特殊符號組合。欄位驗證失敗回 400，message 可直接顯示，errors 可供前端標示欄位；不回傳輸入值。例如：
+
+```json
+{
+  "code": "VALIDATION_FAILED",
+  "message": "password：密碼長度需為 8–72 字元，且 UTF-8 不可超過 72 bytes",
+  "errors": [{"field":"password","message":"密碼長度需為 8–72 字元，且 UTF-8 不可超過 72 bytes"}]
+}
+```
+
+回應另包含 path、timestamp。多位元組密碼超過 72 bytes 時回 INVALID_PASSWORD 與長度說明。
 
 會員預約順序：
 

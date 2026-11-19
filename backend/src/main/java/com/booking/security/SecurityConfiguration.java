@@ -88,6 +88,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/v1/payments/ecpay/notify", "/api/v1/payments/ecpay/result").permitAll()
                         .requestMatchers("/api/v1/me").authenticated()
                         .requestMatchers("/api/v1/holds", "/api/v1/holds/**", "/api/v1/orders", "/api/v1/orders/**").hasRole("MEMBER")
+                        .requestMatchers("/api/v1/backoffice/admins", "/api/v1/backoffice/admins/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/backoffice/courts", "/api/v1/backoffice/courts/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/backoffice/orders", "/api/v1/backoffice/orders/**", "/api/v1/backoffice/timetable").hasRole("FRONT_DESK")
                         .requestMatchers("/api/v1/backoffice/blocks", "/api/v1/backoffice/blocks/**").hasRole("ADMIN")

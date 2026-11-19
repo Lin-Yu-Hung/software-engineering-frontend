@@ -258,6 +258,62 @@ class AuthAndCourtIntegrationTests {
         }
     }
 
+    @Test
+    void onlyAdminCanCreateAnAdminAndNewAccountCanManageCourts() throws Exception {
+        registerMember();
+        var payload = registration("phase2-new-admin-" + UUID.randomUUID() + "@integration.test", PASSWORD);
+        assertStatus(send("POST", "/api/v1/backoffice/admins", payload, null, null, false), 401);
+        assertCode(send("POST", "/api/v1/backoffice/admins", payload, login(email).access(), null, false), 403, "FORBIDDEN");
+        assertCode(send("POST", "/api/v1/backoffice/admins", payload, login(STAFF).access(), null, false), 403, "FORBIDDEN");
+        var created = send("POST", "/api/v1/backoffice/admins", payload, login(ADMIN).access(), null, false);
+        assertStatus(created, 201);
+        assertThat(JsonPath.<List<String>>read(created.body(), "$.roles")).containsExactly("ADMIN");
+        assertThat(created.body()).doesNotContain(PASSWORD, "passwordHash", "accessToken");
+        assertThat(created.headers().firstValue("set-cookie")).isEmpty();
+        Session newAdmin = login((String) payload.get("email"));
+        assertStatus(send("GET", "/api/v1/backoffice/courts", null, newAdmin.access(), null, false), 200);
+        assertStatus(send("GET", "/api/v1/backoffice/orders", null, newAdmin.access(), null, false), 200);
+    }
+
+    @Test
+    void adminCreationDoesNotPromoteExistingMembersOrAcceptCustomRoles() throws Exception {
+        registerMember();
+        Session admin = login(ADMIN);
+        assertCode(send("POST", "/api/v1/backoffice/admins", registration(email, PASSWORD), admin.access(), null, false), 409, "EMAIL_ALREADY_EXISTS");
+        assertThat(jdbc.queryForList("SELECT role FROM user_roles WHERE user_id=(SELECT id FROM users WHERE email=?)", String.class, email))
+                .containsExactly("MEMBER");
+        var payload = registration("phase2-other-" + UUID.randomUUID() + "@integration.test", PASSWORD);
+        payload.put("roles", List.of("MEMBER"));
+        assertCode(send("POST", "/api/v1/backoffice/admins", payload, admin.access(), null, false), 400, "INVALID_BODY");
+    }
+
+    @Test
+    void validationExplainsPasswordAndEveryInvalidRegistrationFieldWithoutEchoingValues() throws Exception {
+        var shortPassword = register(email, "abc1234");
+        assertCode(shortPassword, 400, "VALIDATION_FAILED");
+        assertThat(JsonPath.<String>read(shortPassword.body(), "$.message")).contains("password", "8–72");
+        assertThat(JsonPath.<List<String>>read(shortPassword.body(), "$.errors[*].field")).contains("password");
+        assertThat(shortPassword.body()).doesNotContain("abc1234", "rejectedValue");
+        var invalid = send("POST", "/api/v1/auth/register", Map.of("email", "invalid-email", "password", "abc", "name", "", "phone", "xyz"), null, null, false);
+        assertStatus(invalid, 400);
+        assertThat(JsonPath.<List<String>>read(invalid.body(), "$.errors[*].field")).contains("email", "password", "name", "phone");
+        var adminInvalid = send("POST", "/api/v1/backoffice/admins", registration(email, "abc1234"), login(ADMIN).access(), null, false);
+        assertCode(adminInvalid, 400, "VALIDATION_FAILED");
+        assertThat(JsonPath.<String>read(adminInvalid.body(), "$.message")).contains("8–72");
+    }
+
+    @Test
+    void registrationEnforcesCharacterAndUtf8PasswordBoundaries() throws Exception {
+        assertStatus(register(email, "a".repeat(8)), 201);
+        String next = "phase2-" + UUID.randomUUID() + "@integration.test";
+        assertStatus(register(next, "a".repeat(72)), 201);
+        assertCode(register("phase2-" + UUID.randomUUID() + "@integration.test", "a".repeat(73)), 400, "VALIDATION_FAILED");
+        assertStatus(register("phase2-" + UUID.randomUUID() + "@integration.test", "羽".repeat(24)), 201);
+        var tooManyBytes = register("phase2-" + UUID.randomUUID() + "@integration.test", "羽".repeat(25));
+        assertCode(tooManyBytes, 400, "INVALID_PASSWORD");
+        assertThat(JsonPath.<String>read(tooManyBytes.body(), "$.message")).contains("72 bytes");
+    }
+
     private long version(String id) { return jdbc.queryForObject("SELECT version FROM courts WHERE id = ?::uuid", Long.class, id); }
 
     private void seed(String account, String role) {
