@@ -7,5 +7,9 @@
   "appName": "ccu-booking-api-1fd823",
   "sku": "F1",
   "runtime": "JAVA:21-java21",
-  "corsAllowedOrigins": ["http://localhost:5173", "http://localhost:5174"]
+  "corsAllowedOrigins": [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://software-engineering-frontend-five.vercel.app"
+  ]
 }
