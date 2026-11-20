@@ -1,7 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { cartStore, removeFromCart, clearCart } from '../../stores/cartStore.js'
+import { cartStore, clearCart } from '../../stores/cartStore.js'
+import { createHold, createOrder, initiateEcpayPayment } from '../../api/booking.js'
+import { isAuthenticated, userRoles, login } from '../../stores/authStore.js'
 
 const router = useRouter()
 
@@ -16,7 +18,6 @@ onMounted(() => {
 // ==============================
 const totalPrice = computed(() => cartStore.items.reduce((sum, i) => sum + i.price, 0))
 
-// 按日期分組顯示
 const itemsByDate = computed(() => {
   const map = {}
   for (const item of cartStore.items) {
@@ -34,33 +35,163 @@ const endSlot = (slot) => `${String(parseInt(slot) + 1).padStart(2, '0')}:00`
 const form = ref({
   name: '',
   phone: '',
-  payment: 'online',
+  payment: 'CREDIT_CARD',
 })
 
 const paymentOptions = [
-  { value: 'online',      label: '線上信用卡',   icon: 'mdi-credit-card',          sub: 'ECPay 串接 (開發中)' },
-  { value: 'onsite_cash', label: '現場現金',     icon: 'mdi-cash',                  sub: '到場後付款' },
-  { value: 'onsite_card', label: '現場刷卡',     icon: 'mdi-contactless-payment',   sub: '到場後付款' },
+  { value: 'CREDIT_CARD', label: '線上信用卡',  icon: 'mdi-credit-card',        sub: 'ECPay 綠界線上刷卡' },
+  { value: 'CASH',        label: '現場現金',    icon: 'mdi-cash',               sub: '到場後付款' },
+  { value: 'ONSITE_CARD', label: '現場刷卡',    icon: 'mdi-contactless-payment', sub: '到場後付款' },
 ]
+
+// ==============================
+// 未登入狀態：顯示登入表單
+// ==============================
+const isMember = computed(() =>
+  isAuthenticated.value && userRoles.value.includes('MEMBER'),
+)
+
+const loginForm = ref({ email: '', password: '' })
+const loginError = ref('')
+const loginLoading = ref(false)
+
+const handleLogin = async () => {
+  if (!loginForm.value.email || !loginForm.value.password) {
+    loginError.value = '請輸入帳號與密碼'
+    return
+  }
+  loginLoading.value = true
+  loginError.value = ''
+  try {
+    await login(loginForm.value.email, loginForm.value.password)
+  } catch (err) {
+    loginError.value = err?.message || '帳號或密碼錯誤'
+  } finally {
+    loginLoading.value = false
+  }
+}
+
+// ==============================
+// 鎖定時段 Hold（進結帳頁時自動建立）
+// ==============================
+const holdId = ref(null)
+const holdExpiresAt = ref(null)
+const holdError = ref(null)
+const holdLoading = ref(false)
+const holdCountdown = ref('')
+
+let countdownTimer = null
+
+const startCountdown = () => {
+  if (countdownTimer) clearInterval(countdownTimer)
+  countdownTimer = setInterval(() => {
+    if (!holdExpiresAt.value) return
+    const diff = new Date(holdExpiresAt.value) - new Date()
+    if (diff <= 0) {
+      holdCountdown.value = '保留已過期'
+      holdId.value = null
+      clearInterval(countdownTimer)
+      return
+    }
+    const mins = Math.floor(diff / 60000)
+    const secs = Math.floor((diff % 60000) / 1000)
+    holdCountdown.value = `${mins}:${String(secs).padStart(2, '0')}`
+  }, 1000)
+}
+
+onUnmounted(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
+})
+
+const createHoldForCart = async () => {
+  if (!isMember.value) return
+  holdLoading.value = true
+  holdError.value = null
+  try {
+    const items = cartStore.items.map((i) => ({
+      courtId: i.courtId,
+      startAt: i.startAt,
+    }))
+    const hold = await createHold(items)
+    holdId.value = hold.id
+    holdExpiresAt.value = hold.expiresAt
+    startCountdown()
+  } catch (err) {
+    holdError.value = err?.message || '時段鎖定失敗，可能已被其他人預約，請返回重新選擇'
+    holdId.value = null
+  } finally {
+    holdLoading.value = false
+  }
+}
+
+// 當登入後自動嘗試建立 Hold
+watch(isMember, (val) => {
+  if (val && !holdId.value && !holdLoading.value) {
+    createHoldForCart()
+  }
+}, { immediate: true })
 
 // ==============================
 // 送出預約
 // ==============================
 const submitted = ref(false)
-const orderId = ref('')
+const orderNumber = ref('')
+const submitting = ref(false)
+const submitError = ref(null)
 
-const submit = () => {
+const submit = async () => {
   if (!form.value.name.trim()) {
-    alert('請填寫預約人姓名')
+    submitError.value = '請填寫預約人姓名'
     return
   }
   if (!form.value.phone.trim()) {
-    alert('請填寫聯絡電話')
+    submitError.value = '請填寫聯絡電話'
     return
   }
-  orderId.value = 'BK' + Date.now().toString().slice(-8)
-  submitted.value = true
-  clearCart()
+  if (!holdId.value) {
+    submitError.value = '時段尚未鎖定，請稍候再試或重新整理頁面'
+    return
+  }
+
+  submitting.value = true
+  submitError.value = null
+
+  try {
+    const order = await createOrder({
+      holdId: holdId.value,
+      customer: {
+        name: form.value.name.trim(),
+        phone: form.value.phone.trim(),
+      },
+      paymentMethod: form.value.payment,
+    })
+
+    clearCart()
+
+    if (form.value.payment === 'CREDIT_CARD') {
+      // 跳轉至綠界付款頁
+      const checkout = await initiateEcpayPayment(order.id)
+      const formEl = document.createElement('form')
+      formEl.method = 'POST'
+      formEl.action = checkout.action
+      for (const [key, value] of Object.entries(checkout.fields)) {
+        const input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = key
+        input.value = value
+        formEl.appendChild(input)
+      }
+      document.body.appendChild(formEl)
+      formEl.submit()
+    } else {
+      orderNumber.value = order.orderNumber
+      submitted.value = true
+    }
+  } catch (err) {
+    submitError.value = err?.message || '預約送出失敗，請再試一次'
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -82,18 +213,17 @@ const submit = () => {
       <div>
         <h2 class="text-2xl font-bold text-slate-800 mb-2">預約建立成功！</h2>
         <p class="text-slate-500 text-sm">
-          訂單編號：<span class="font-bold text-slate-700 text-base font-mono">{{ orderId }}</span>
+          訂單編號：<span class="font-bold text-slate-700 text-base font-mono">{{ orderNumber }}</span>
         </p>
         <p class="text-xs text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
-          請於打球前出示此訂單編號至現場櫃台核銷入場。付款確認後將寄送通知。
+          請於打球前出示此訂單編號至現場櫃台核銷入場。
         </p>
       </div>
-      <!-- 憑證外框 (模擬 QR Code 區塊) -->
       <div class="border-2 border-dashed border-emerald-300 rounded-xl p-5 bg-emerald-50 inline-block mx-auto">
         <div class="w-20 h-20 bg-slate-200 rounded-lg flex items-center justify-center mx-auto mb-2">
           <v-icon icon="mdi-qrcode" size="48" color="grey-darken-1"></v-icon>
         </div>
-        <p class="text-xs text-slate-500 font-mono font-bold">{{ orderId }}</p>
+        <p class="text-xs text-slate-500 font-mono font-bold">{{ orderNumber }}</p>
         <p class="text-2xs text-slate-400 mt-0.5">掃描或出示此憑證核銷入場</p>
       </div>
       <div class="flex gap-3 justify-center flex-wrap">
@@ -129,7 +259,6 @@ const submit = () => {
           </v-chip>
         </div>
 
-        <!-- 依日期分組 -->
         <div class="divide-y divide-slate-100">
           <div v-for="[date, items] in itemsByDate" :key="date">
             <div class="px-5 py-2 bg-slate-50/60 text-xs font-bold text-slate-500 flex items-center gap-1.5">
@@ -157,8 +286,6 @@ const submit = () => {
                     {{ item.isPeak ? '尖峰' : '離峰' }}
                   </v-chip>
                 </div>
-                <v-btn icon="mdi-close" size="x-small" variant="text" color="grey"
-                       @click="removeFromCart(item.courtId, item.slot, item.date)"></v-btn>
               </div>
             </div>
           </div>
@@ -171,8 +298,55 @@ const submit = () => {
         </div>
       </div>
 
-      <!-- 顧客資料表單 -->
-      <div class="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-5">
+      <!-- 時段鎖定狀態 -->
+      <div v-if="isMember">
+        <div v-if="holdLoading"
+             class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-700 flex items-center gap-2">
+          <v-progress-circular size="16" width="2" indeterminate color="amber"></v-progress-circular>
+          正在為您鎖定時段，請稍候...
+        </div>
+        <div v-else-if="holdError"
+             class="bg-rose-50 border border-rose-200 rounded-xl p-4 text-sm text-rose-700 flex items-center gap-2">
+          <v-icon icon="mdi-alert-circle" size="18"></v-icon>
+          <span>{{ holdError }}</span>
+          <v-btn size="x-small" variant="text" color="error" class="ml-auto" @click="createHoldForCart">重試</v-btn>
+        </div>
+        <div v-else-if="holdId"
+             class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-700 flex items-center gap-2">
+          <v-icon icon="mdi-lock-check" size="18"></v-icon>
+          時段已鎖定，請在 <span class="font-bold font-mono mx-1">{{ holdCountdown }}</span> 內完成付款
+        </div>
+      </div>
+
+      <!-- 未登入提示 -->
+      <div v-if="!isMember" class="bg-white rounded-xl border border-amber-200 shadow-xs p-6 space-y-4">
+        <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+          <v-icon icon="mdi-login" size="18" color="primary"></v-icon>
+          請先登入會員才能完成預約
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs font-semibold text-slate-600 block mb-1.5">電子郵件</label>
+            <input v-model="loginForm.email" type="email" placeholder="example@mail.com"
+                   class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-emerald-500 bg-white"
+                   @keyup.enter="handleLogin" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-slate-600 block mb-1.5">密碼</label>
+            <input v-model="loginForm.password" type="password" placeholder="••••••••"
+                   class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-emerald-500 bg-white"
+                   @keyup.enter="handleLogin" />
+          </div>
+        </div>
+        <div v-if="loginError" class="text-xs text-rose-600 font-medium">{{ loginError }}</div>
+        <v-btn color="primary" variant="flat" rounded="lg" :loading="loginLoading"
+               class="font-semibold" @click="handleLogin">
+          登入並繼續預約
+        </v-btn>
+      </div>
+
+      <!-- 顧客資料表單 (已登入才顯示) -->
+      <div v-if="isMember" class="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-5">
         <h3 class="text-sm font-bold text-slate-700 flex items-center gap-2">
           <v-icon icon="mdi-account-edit" size="18" color="primary"></v-icon>
           預約人資料
@@ -190,12 +364,12 @@ const submit = () => {
             <label class="text-xs font-semibold text-slate-600 block mb-1.5">
               聯絡電話 <span class="text-rose-500">*</span>
             </label>
-            <input v-model="form.phone" type="tel" placeholder="例如：0912-345-678"
+            <input v-model="form.phone" type="tel" placeholder="例如：0912345678"
                    class="w-full border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-emerald-500 bg-white" />
           </div>
         </div>
 
-        <!-- 付款方式選擇 -->
+        <!-- 付款方式 -->
         <div>
           <label class="text-xs font-semibold text-slate-600 block mb-2">付款方式</label>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -234,11 +408,21 @@ const submit = () => {
         </ul>
       </div>
 
+      <!-- 錯誤訊息 -->
+      <div v-if="submitError"
+           class="bg-rose-50 border border-rose-200 rounded-xl p-4 text-sm text-rose-700 flex items-center gap-2">
+        <v-icon icon="mdi-alert-circle" size="18"></v-icon>
+        {{ submitError }}
+      </div>
+
       <!-- 送出按鈕 -->
-      <v-btn color="primary" variant="flat" rounded="lg" size="large" block
+      <v-btn v-if="isMember"
+             color="primary" variant="flat" rounded="lg" size="large" block
              prepend-icon="mdi-check-circle" class="font-bold text-base !py-4"
+             :loading="submitting"
+             :disabled="holdLoading || !!holdError || !holdId"
              @click="submit">
-        確認送出預約
+        {{ form.payment === 'CREDIT_CARD' ? '前往綠界線上付款' : '確認送出預約' }}
         <span class="ml-2 text-emerald-200 font-normal text-sm">（共 ${{ totalPrice }} 元）</span>
       </v-btn>
     </template>

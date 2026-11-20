@@ -1,7 +1,13 @@
 <script setup>
+import { onMounted } from 'vue'
 import AppFooter from "./components/AppFooter.vue";
 import AppHeader from "./components/AppHeader.vue";
 import GlobalApiLoader from "./components/GlobalApiLoader.vue";
+import { initAuth } from './stores/authStore'
+
+onMounted(() => {
+  initAuth()
+})
 </script>
 
 <template>
